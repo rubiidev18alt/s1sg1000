@@ -8,6 +8,7 @@ ghz_init:
   ld (ypos),a
   ld (grounded),a
   ld (camera_x_hi),a
+  ld (ghz_downhill),a
   ld a,1
   ld (xpage),a             ; original start x=256
   ld (ypage),a
@@ -384,6 +385,25 @@ ghz_apply_floor:
   ld de,32
   or a
   sbc hl,de
+  push hl
+  ld a,(ypos+1)
+  ld e,a
+  ld a,(ypage)
+  ld d,a
+  or a
+  sbc hl,de
+  ld a,0
+  jr c,ghz_slope_saved
+  ld a,h
+  or l
+  jr z,ghz_slope_saved
+  ld a,(grounded)
+  or a
+  jr z,ghz_slope_saved
+  ld a,1
+ghz_slope_saved:
+  ld (ghz_downhill),a
+  pop hl
   ld a,h
   ld (ypage),a
   ld a,l

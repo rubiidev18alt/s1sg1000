@@ -78,6 +78,7 @@ ring_hud_cached_count db
 ring_anim_frame db
 ring_anim_timer db
 ghz_draw_value db
+ghz_downhill db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -470,10 +471,10 @@ physics_x:
   jr nz,roll_physics
   ld a,(grounded)
   or a
-  jr z,normal_movement
+  jp z,normal_movement
   ld a,(controls)
   bit 1,a
-  jr z,normal_movement
+  jp z,normal_movement
   ; The SMS permits rolling at any nonzero speed. At rest down remains
   ; a crouch rather than creating a stationary roll.
   ld hl,(xvel)
@@ -487,7 +488,7 @@ enter_roll:
 roll_physics:
   ; On the SMS (01:535B-53A4), pressing opposite with down released
   ; exits the grounded roll and applies normal braking. Same-direction input
-  ; and horizontal input while down is held do not accelerate the ground roll.
+  ; and horizontal input while down is held only boosts on a descent.
   ld a,(controls)
   bit 1,a
   jr nz,roll_friction
@@ -537,6 +538,38 @@ roll_stop:
   ld hl,0
   jp save_vx
 roll_maintain_speed:
+  ; Hold the direction of travel and down to gain speed on a descent.
+  ld a,(controls)
+  and $0E
+  cp $0A
+  jr nz,roll_accel_left_test
+  ld hl,(xvel)
+  bit 7,h
+  jp nz,save_vx
+  ld de,$0C00
+  or a
+  sbc hl,de
+  add hl,de
+  jp nc,save_vx
+  ld de,$0020
+  add hl,de
+  jp save_vx
+roll_accel_left_test:
+  cp $06
+  jr nz,roll_keep_speed
+  ld hl,(xvel)
+  bit 7,h
+  jp z,save_vx
+  ld de,$F400
+  or a
+  sbc hl,de
+  add hl,de
+  jp m,save_vx
+  ld de,$0020
+  or a
+  sbc hl,de
+  jp save_vx
+roll_keep_speed:
   ld hl,(xvel)
   jp save_vx
 
@@ -813,7 +846,13 @@ get_floor:
 rolling_downhill:
   ld a,(menu_selection)
   or a
-  jp nz,not_downhill
+  jr z,roll_test_downhill
+  ld a,(grounded)
+  or a
+  jr z,not_downhill
+  ld a,(ghz_downhill)
+  ret
+roll_test_downhill:
   ld a,(xpos+1)
   ld l,a
   ld a,(xpage)

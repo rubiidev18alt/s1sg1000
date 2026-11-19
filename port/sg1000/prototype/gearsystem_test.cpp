@@ -661,6 +661,15 @@ int main(int argc, char** argv) {
     downhill_right.set_byte(0xC015, 1);
     downhill_right.frames(2);
     assert(downhill_right.vx() == 0x0200 && downhill_right.byte(0xC015));
+    Simulation powered_right(argv[1]);
+    powered_right.set_x(244);
+    powered_right.set_y(136);
+    powered_right.set_word(0xC004, 0x0200);
+    powered_right.set_byte(0xC015, 1);
+    powered_right.press(Key_Down);
+    powered_right.press(Key_Right);
+    powered_right.frames(2);
+    assert(powered_right.vx() > 0x0200);
     Simulation downhill_left(argv[1]);
     downhill_left.set_x(116); // centre in column 16, falling to the left
     downhill_left.set_y(136);
@@ -668,6 +677,20 @@ int main(int argc, char** argv) {
     downhill_left.set_byte(0xC015, 1);
     downhill_left.frames(2);
     assert(downhill_left.vx() == -0x0200 && downhill_left.byte(0xC015));
+    Simulation ghz_roll(argv[1], false);
+    ghz_roll.press(Key_2); ghz_roll.frames(3); ghz_roll.release(Key_2); ghz_roll.frames(2);
+    ghz_roll.press(Key_1); ghz_roll.frames(3); ghz_roll.release(Key_1); ghz_roll.frames(40);
+    ghz_roll.set_x(2100); ghz_roll.set_y(252);
+    ghz_roll.set_word(0xC004, 0x0200); ghz_roll.set_word(0xC006, 0);
+    ghz_roll.set_byte(0xC008, 1); ghz_roll.set_byte(0xC015, 1);
+    ghz_roll.press(Key_Right); ghz_roll.press(Key_Down);
+    ghz_roll.frames(10);
+    assert(ghz_roll.vx() > 0x0200); // original GHZ downhill profile
+    Simulation flat_roll(argv[1]);
+    flat_roll.set_word(0xC004, 0x0200); flat_roll.set_byte(0xC015, 1);
+    flat_roll.press(Key_Right); flat_roll.press(Key_Down);
+    flat_roll.frames(2);
+    assert(flat_roll.vx() < 0x0200); // no boost on flat ground
     Simulation uphill(argv[1]);
     uphill.set_x(116);
     uphill.set_y(136);

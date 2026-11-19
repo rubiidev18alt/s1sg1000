@@ -69,7 +69,9 @@ no playable game or sound/physics code is produced by this step.
 The separate prototype builds a 32 KiB SG-1000 ROM with a black background,
 a 768-pixel-wide white test course with multiple stepped hills. Move with left/right; button 1 jumps.
 Holding button 1 produces a higher jump. Press down while moving to roll;
-rolling slows on flat or uphill ground, but retains speed downhill. Release
+rolling slows on flat or uphill ground, but retains speed downhill. Hold down
+and the direction of travel on a descent to accelerate the roll (an
+approximation, capped at 12 pixels per frame). Release
 down and press against the direction of travel to unroll and brake; the roll
 also ends when Sonic stops or jumps. Reset the emulator to restart. At the ZONE SELECT menu, tap button 2 to switch between TEST and GHZ1;
 press and release button 1 to enter either test level.
