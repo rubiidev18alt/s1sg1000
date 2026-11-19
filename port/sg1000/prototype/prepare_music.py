@@ -1,17 +1,18 @@
-"""Compile two SMS song tone streams into a compact, simplified PSG score.
+"""Compile SMS tone and noise streams into a compact, simplified PSG score.
 
 Loop counts, note lengths, direct volume and restart points are retained.
-Envelope, vibrato, bend, legato and the discarded tone/noise channels are
-not rendered. Only the two known, ROM-validated songs are used by the build.
+Tone envelopes, vibrato, bend, legato and the third tone are not rendered.
+The noise presets are approximated with short two-stage volume envelopes. Only the two known, ROM-validated songs are used by the build.
 """
 import struct
 
 
 def decode(song, channel, numerator, denominator):
-    if channel not in (0, 1):
-        raise ValueError('only the first two tone channels are supported')
+    if channel not in (0, 1, 3):
+        raise ValueError('unsupported channel')
     offsets = struct.unpack_from('<4H', song)
-    start, end = offsets[channel:channel + 2]
+    start = offsets[channel]
+    end = offsets[channel + 1] if channel < 3 else len(song)
     if not 10 <= start < end <= len(song):
         raise ValueError('invalid channel range')
     pos = start
@@ -34,7 +35,10 @@ def decode(song, channel, numerator, denominator):
         steps += 1
         command = read(1)[0]
         if command < 0x80:
-            if 0x70 <= command < 0x7f or (command & 15) == 15 and command != 0x7f:
+            if channel == 3:
+                if command not in (0x70, 0x71, 0x7f):
+                    raise ValueError('unsupported noise preset')
+            elif 0x70 <= command < 0x7f or (command & 15) == 15 and command != 0x7f:
                 raise ValueError('unsupported tone note')
             duration = read(1)[0] or default
             if not duration:
@@ -93,14 +97,24 @@ def decode(song, channel, numerator, denominator):
 def compile_score(songs):
     lines = []
     for name, tempo in [('title', (5, 4)), ('ghz', (1, 1))]:
-        for channel in (0, 1):
+        for channel in (0, 1, 3):
             events, restart = decode(songs[name], channel, *tempo)
             label = 'music_{}_{}'.format(name, channel)
             lines.append(label + ':')
             for index, (duration, note, volume) in enumerate(events):
                 if index == restart:
                     lines.append(label + '_loop:')
-                lines.append('.db {}, {}, {}'.format(duration, note, volume))
+                if channel != 3:
+                    lines.append('.db {}, {}, {}'.format(duration, note, volume))
+                elif note == 0x7f:
+                    lines.append('.db {}, 15'.format(duration))
+                else:
+                    # Preset 70 is a sharp hit; 71 has the slower SMS decay.
+                    attack = min(duration, 1 if note == 0x70 else 4)
+                    lines.append('.db {}, {}'.format(attack, volume))
+                    if duration > attack:
+                        tail = min(15, volume + (7 if note == 0x70 else 5))
+                        lines.append('.db {}, {}'.format(duration - attack, tail))
             lines.append('.db 0')
             lines.append('.dw {}'.format(label + '_loop' if restart is not None else '0'))
     return '\n'.join(lines) + '\n'

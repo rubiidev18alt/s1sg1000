@@ -44,9 +44,18 @@ class MusicPreparationTest(unittest.TestCase):
                 # equal loop duration, so they don't drift apart on repeat.
                 self.assertEqual([sum(x[0] for x in e[:r]) for e, r in decoded], [864, 864])
                 self.assertEqual([sum(x[0] for x in e[r:]) for e, r in decoded], [2304, 2304])
+        title_noise, title_restart = prepare_music.decode(songs['title'], 3, 5, 4)
+        ghz_noise, ghz_restart = prepare_music.decode(songs['ghz'], 3, 1, 1)
+        self.assertEqual((len(title_noise), title_restart), (35, 34))
+        self.assertEqual((len(ghz_noise), ghz_restart), (72, 8))
+        self.assertEqual(sum(event[0] for event in ghz_noise[:ghz_restart]), 96)
+        self.assertEqual(sum(event[0] for event in ghz_noise[ghz_restart:]), 768)
+        self.assertEqual({event[1] for event in ghz_noise}, {0x70, 0x71})
         score = prepare_music.compile_score(songs)
         self.assertIn('music_title_0:', score)
         self.assertIn('.dw music_ghz_1_loop', score)
+        self.assertIn('.dw music_ghz_3_loop', score)
+        self.assertIn('music_title_3:', score)
 
 
 if __name__ == '__main__':

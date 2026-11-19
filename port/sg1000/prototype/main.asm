@@ -70,8 +70,9 @@ ring_redraw db
 ring_cam_page db
 sfx_ptr dw
 sfx_timer db
-music_ch0 dsb 4
-music_ch1 dsb 4
+music_ch0 dsb 6
+music_ch1 dsb 6
+music_ch3 dsb 3
 sprite_cached_index db
 ring_hud_cached_count db
 .ENDS

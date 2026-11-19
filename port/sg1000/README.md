@@ -236,12 +236,13 @@ sequences rather than the original sound driver. Effect priority and retrigger
 behavior remain simplified, and the result has not been verified by listening
 against the original hardware. Other Sonic sounds are not yet implemented.
 
-A first music port plays simplified two-tone arrangements of the original SMS
-title theme on zone select and Green Hill music in GHZ1; TEST is silent. The
-build extracts the original streams and compiles the first two tone parts into
-frame-timed note/volume events, preserving song loops and note timing. This
-omits the third tone and noise parts, and does not yet reproduce the original
-envelopes, vibrato, pitch bends or legato. Channel 2 remains reserved for
-sound effects. The title stream ends in silence as in its extracted data. This
-is an initial arrangement, not a complete or listening-verified music port.
+A first music port plays simplified arrangements of the original SMS title
+theme on zone select and Green Hill music in GHZ1; TEST is silent. The build
+compiles two tone parts and the original noise-part rhythms into frame-timed
+note/volume events, preserving song loops and note timing. The noise percussion
+uses a fixed clock, so effects on tone channel 2 cannot alter its pitch. Simple
+volume decay has been added to the tones and the two percussion presets, but
+the original envelopes, vibrato, pitch bends and legato are still approximate
+or omitted, as is the third tone part. The title stream ends in silence as in
+its extracted data. This is not a complete or listening-verified music port.
 Generated ROM-derived assets remain ignored.
