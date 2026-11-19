@@ -127,3 +127,30 @@ button 2 resumes the sandbox; the preview does not advance physics.
 
 The waiting animation starts after 360 idle frames, following the SMS bored
 frame sequence and its loop point. Other animation timing remains approximate.
+
+### Green Hill sprite asset preparation (not loaded in the prototype)
+
+After extracting the supported ROM as described above, run:
+
+```
+python3 port/sg1000/prepare_ghz_sprites.py
+```
+
+This decodes the GHZ `$2000` sprite art bank and converts its 128 SMS 4bpp
+8x8 tiles to TMS monochrome masks and per-tile colours using the GHZ SMS sprite
+palette. It writes `patterns.bin`, `colours.bin`, and `manifest.json` to
+`build/sg1000/ghz_sprites/` (generated, ignored). The manifest preserves the
+original sprite-map cell coordinates and source tile indices for Crabmeat,
+Buzz Bomber and Motobug animation frames. Source maps are read only from the
+verified ROM; no game data is fetched or committed by this script.
+
+This is a first-pass conversion: the single-colour tiles lose detail, and
+animation timing, sprite limits, enemy behavior, collision, palettes for other
+zones, and runtime integration are not implemented. In particular, the
+prototype's two-layer Sonic already uses the TMS four-sprites-per-scanline
+budget. GHZ1 remains locked and the current ROM does not load these assets.
+
+The sandbox's walk and roll animation phases now advance with horizontal
+speed, based on the SMS code; run, jump and skid also use the corresponding
+SMS frame sequences. The prototype physics and frame timings are still not a
+complete or cycle-exact port.
