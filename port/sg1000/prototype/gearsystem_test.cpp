@@ -287,10 +287,16 @@ int main(int argc, char** argv) {
     test_ring.frames(6);
     assert(test_ring.byte(0xC03E) == 1);
     auto ring_audio = test_ring.core.GetAudio()->GetPSG()->GetState();
-    assert(ring_audio.channels[2].volume_reg < 15);
+    assert(ring_audio.channels[2].volume_reg == 0);
+    assert(ring_audio.channels[2].period == 71 * 16);
     for (int channel : {0, 1, 3}) assert(ring_audio.channels[channel].volume_reg == 15);
     assert(ring_vram[0x1805] == 40 && ring_vram[0x1806] == 42);
-    test_ring.frames(20);
+    test_ring.frames(10);
+    ring_audio = test_ring.core.GetAudio()->GetPSG()->GetState();
+    assert(ring_audio.channels[2].period == 53 * 16);
+    assert(ring_audio.channels[2].volume_reg == 2);
+    test_ring.frames(10);
+    assert(test_ring.core.GetAudio()->GetPSG()->GetState().channels[2].volume_reg == 15);
     assert(test_ring.byte(0xC03E) == 1);
     Simulation wrap_ring(argv[1]);
     wrap_ring.set_byte(0xC03E, 0x99);
@@ -313,6 +319,8 @@ int main(int argc, char** argv) {
     sound.frames(5);
     state = psg->GetState();
     assert(state.channels[2].period == 239 * 16);
+    sound.frames(1);
+    assert(psg->GetState().channels[2].period == 231 * 16); // vibrato bend
     sound.release(Key_1);
     sound.frames(30);
     assert(psg->GetState().channels[2].volume_reg == 15);
@@ -321,11 +329,25 @@ int main(int argc, char** argv) {
     sound_roll.press(Key_Down);
     sound_roll.frames(1);
     assert(sound_roll.core.GetAudio()->GetPSG()->GetState().channels[2].period == 56 * 16);
+    sound_roll.release(Key_Down);
+    sound_roll.set_word(0xC004, 0); // avoid collecting rings during the long sweep
+    sound_roll.frames(20);
+    auto roll_state = sound_roll.core.GetAudio()->GetPSG()->GetState();
+    assert(roll_state.channels[2].period < 56 * 16);
+    assert(roll_state.channels[2].volume_reg == 4);
+    sound_roll.frames(150);
+    assert(sound_roll.core.GetAudio()->GetPSG()->GetState().channels[2].volume_reg == 15);
     Simulation sound_brake(argv[1]);
     sound_brake.set_word(0xC004, 0x0200);
     sound_brake.press(Key_Left);
     sound_brake.frames(1);
     assert(sound_brake.core.GetAudio()->GetPSG()->GetState().channels[2].period == 134 * 16);
+    sound_brake.frames(4);
+    assert(sound_brake.core.GetAudio()->GetPSG()->GetState().channels[2].volume_reg == 15);
+    sound_brake.frames(2);
+    assert(sound_brake.core.GetAudio()->GetPSG()->GetState().channels[2].volume_reg == 0);
+    sound_brake.frames(25);
+    assert(sound_brake.core.GetAudio()->GetPSG()->GetState().channels[2].volume_reg == 15);
     Simulation s(argv[1]);
     assert(s.x() == 24 && s.y() == 176 && s.grounded());
     int start_camera_y = s.camera_y();

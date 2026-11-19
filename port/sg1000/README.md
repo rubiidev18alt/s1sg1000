@@ -227,10 +227,13 @@ the counter wraps at 100 as on SMS, but the extra life is not implemented.
 Rings are static, not animated, and fully visible rings are drawn when the
 camera changes (partially clipped rings are not drawn).
 
-The prototype plays preliminary jump, roll, brake, and ring pickup sound
-effects using PSG tone channel 2 only. Their notes are taken from the SMS
-sound data, but timing, looping, vibrato, and envelopes are simplified. Other
-Sonic sounds and music are not yet implemented. TEST has no background music.
+The prototype plays jump, roll, brake, and ring pickup sound effects using
+PSG tone channel 2 only. Their note lengths, pitch sweeps, repeated notes and
+volume steps follow the SMS effects data, rendered as precomputed frame
+sequences rather than the original sound driver. Effect priority and retrigger
+behavior remain simplified, and the result has not been verified by listening
+against the original hardware. Other Sonic sounds and music are not yet
+implemented. TEST has no background music.
 The SMS songs use all four PSG streams, so reserving a channel for sound
 effects requires an arrangement or adaptation; raw streams are not an
 SG-1000 audio driver by themselves. Generated ROM-derived assets remain
