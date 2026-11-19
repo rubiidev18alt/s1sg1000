@@ -29,6 +29,9 @@ xpage db
 ypage db
 camera_x db
 camera_y db
+rolling db
+idle_timer db
+idle_phase db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -56,6 +59,9 @@ init:
   ld (viewer_frame),a
   ld (xpage),a
   ld (ypage),a
+  ld (rolling),a
+  ld (idle_timer),a
+  ld (idle_phase),a
   ld a,$FF
   ld (camera_x),a
   ld (camera_y),a
@@ -490,41 +496,66 @@ animate:
   ld (frame_tick),a
   ld a,(grounded)
   or a
-  jr z,anim_spin
+  jr z,anim_air
+  ld hl,(xvel)
+  ld a,h
+  or l
+  jr nz,anim_moving
+  ; Looking is allowed only when standing still, with no movement requested.
+  ld a,(controls)
+  and $0C
+  jr nz,anim_standing
   ld a,(controls)
   bit 0,a
-  jr z,not_looking_up
+  jr z,check_look_down
+  call reset_idle
   ld a,$14
-  jr anim_save
-not_looking_up:
+  jp anim_save
+check_look_down:
   bit 1,a
-  jr z,not_looking_down
-  ld hl,(xvel)
-  ld a,h
-  or l
-  jr nz,anim_spin
+  jr z,anim_idle
+  call reset_idle
   ld a,$07
-  jr anim_save
-not_looking_down:
-  ld hl,(xvel)
-  ld a,h
-  or l
-  jr nz,anim_running
-  ; Original standing frame, with occasional idle animation frames.
-  ld a,(frame_tick)
-  cp 192
-  jr c,anim_still
-  rrca
-  rrca
-  rrca
-  rrca
-  and 3
-  add a,$15
-  jr anim_save
-anim_still:
+  jp anim_save
+anim_standing:
+  call reset_idle
   ld a,$06
-  jr anim_save
-anim_running:
+  jp anim_save
+anim_idle:
+  ; A fresh standing delay precedes the SMS bored sequence. The original
+  ; sequence is 16,15,16,17, not the unrelated frame 18.
+  ld a,(idle_timer)
+  cp 180
+  jr nc,anim_bored
+  inc a
+  ld (idle_timer),a
+  ld a,$06
+  jp anim_save
+anim_bored:
+  ld a,(idle_phase)
+  inc a
+  and $3F
+  ld (idle_phase),a
+  cp 16
+  jr c,idle_frame_16
+  cp 34
+  jr c,idle_frame_15
+  cp 50
+  jr c,idle_frame_16
+  ld a,$17
+  jp anim_save
+idle_frame_15:
+  ld a,$15
+  jp anim_save
+idle_frame_16:
+  ld a,$16
+  jp anim_save
+anim_air:
+  call reset_idle
+  jr anim_spin
+anim_moving:
+  call reset_idle
+  ld hl,(xvel)
   ld a,(controls)
   bit 3,a
   jr z,check_brake_left
@@ -532,13 +563,33 @@ anim_running:
   jr nz,anim_brake
 check_brake_left:
   bit 2,a
-  jr z,anim_walk
+  jr z,anim_speed
   bit 7,h
-  jr nz,anim_walk
+  jr nz,anim_speed
   jr anim_brake
 anim_brake:
   ld a,$13
-  jr anim_save
+  jp anim_save
+anim_speed:
+  ; 0D-10 are the SMS fast-running cycle. Select by speed magnitude.
+  bit 7,h
+  jr z,anim_abs_ready
+  xor a
+  sub l
+  ld l,a
+  ld a,0
+  sbc a,h
+  ld h,a
+anim_abs_ready:
+  ld a,h
+  cp 2
+  jr c,anim_walk
+  ld a,(frame_tick)
+  rrca
+  rrca
+  and 3
+  add a,$0D
+  jp anim_save
 anim_walk:
   ld a,(frame_tick)
   rrca
@@ -557,6 +608,11 @@ anim_spin:
   add a,$08
 anim_save:
   ld (frame_id),a
+  ret
+reset_idle:
+  xor a
+  ld (idle_timer),a
+  ld (idle_phase),a
   ret
 
 ; Hold button 2 and tap left/right to inspect every frame, including

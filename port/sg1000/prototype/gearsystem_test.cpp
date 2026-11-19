@@ -87,6 +87,30 @@ int main(int argc, char** argv) {
     brake.press(Key_Left);
     brake.frames(30);
     assert(brake.vx() < 0);
+    Simulation poses(argv[1]);
+    poses.press(Key_Up);
+    poses.frames(4);
+    assert(poses.byte(0xC00D) == 0x14 && poses.vx() == 0);
+    poses.press(Key_Right);
+    poses.frames(5);
+    assert(poses.vx() > 0 && poses.byte(0xC00D) != 0x14);
+    poses.frames(40);
+    assert(poses.byte(0xC00D) >= 0x0D && poses.byte(0xC00D) <= 0x10);
+    Simulation idle(argv[1]);
+    idle.frames(100);
+    assert(idle.byte(0xC00D) == 0x06);
+    idle.frames(90);
+    for (int i = 0; i < 100; ++i) {
+        idle.frames(1);
+        int frame = idle.byte(0xC00D);
+        assert(frame == 0x15 || frame == 0x16 || frame == 0x17);
+    }
+    idle.press(Key_Down);
+    idle.frames(3);
+    assert(idle.byte(0xC00D) == 0x07 && idle.vx() == 0);
+    idle.release(Key_Down);
+    idle.frames(3);
+    assert(idle.byte(0xC00D) == 0x06);
     Simulation viewer(argv[1]);
     viewer.press(Key_2);
     viewer.press(Key_Right);
