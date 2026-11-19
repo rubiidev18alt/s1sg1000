@@ -33,6 +33,7 @@ rolling db
 idle_timer db
 idle_phase db
 sprite_draw_y db
+idle_timer_hi db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -62,6 +63,7 @@ init:
   ld (ypage),a
   ld (rolling),a
   ld (idle_timer),a
+  ld (idle_timer_hi),a
   ld (idle_phase),a
   ld a,$FF
   ld (camera_x),a
@@ -183,6 +185,11 @@ zone_menu:
   ld hl,menu_test
   ld bc,6
   call vdp_copy
+  ; Do not enable display until every VDP register and menu tile is ready.
+  ld a,$C2
+  out ($BF),a
+  ld a,$81
+  out ($BF),a
 menu_wait_initial_release:
   call menu_poll
   and $30
@@ -703,7 +710,7 @@ animate:
   ld (frame_tick),a
   ld a,(grounded)
   or a
-  jr z,anim_air
+  jp z,anim_air
   ld a,(rolling)
   or a
   jr z,anim_not_rolling
@@ -713,7 +720,7 @@ anim_not_rolling:
   ld hl,(xvel)
   ld a,h
   or l
-  jr nz,anim_moving
+  jp nz,anim_moving
   ; Looking is allowed only when standing still, with no movement requested.
   ld a,(controls)
   and $0C
@@ -735,20 +742,43 @@ anim_standing:
   ld a,$06
   jp anim_save
 anim_idle:
-  ; A fresh standing delay precedes the SMS bored sequence. The original
-  ; sequence is 16,15,16,17, not the unrelated frame 18.
+  ; SMS bored timer (01:4A55/4A6A) begins after $0168 idle frames.
+  ld a,(idle_timer_hi)
+  or a
+  jr z,idle_increment
   ld a,(idle_timer)
-  cp 180
+  cp $68
   jr nc,anim_bored
+idle_increment:
+  ld a,(idle_timer)
   inc a
   ld (idle_timer),a
+  jr nz,idle_check_ready
+  ld a,(idle_timer_hi)
+  inc a
+  ld (idle_timer_hi),a
+idle_check_ready:
+  ld a,(idle_timer_hi)
+  or a
+  jr z,anim_waiting
+  ld a,(idle_timer)
+  cp $68
+  jr nc,anim_bored
+anim_waiting:
   ld a,$06
   jp anim_save
 anim_bored:
+  ; SMS table 01:5A6B: 16 for 16 ticks, 15 for 18, 16 for 16,
+  ; 17 for 16; its FF,22 loop repeats from offset $22 (decimal 34).
   ld a,(idle_phase)
+  ld b,a
   inc a
-  and $3F
+  cp 66
+  jr c,idle_phase_ready
+  ld a,34
+idle_phase_ready:
   ld (idle_phase),a
+  ld a,b
   cp 16
   jr c,idle_frame_16
   cp 34
@@ -763,6 +793,7 @@ idle_frame_15:
 idle_frame_16:
   ld a,$16
   jp anim_save
+
 anim_air:
   call reset_idle
   jr anim_spin
@@ -825,6 +856,7 @@ anim_save:
 reset_idle:
   xor a
   ld (idle_timer),a
+  ld (idle_timer_hi),a
   ld (idle_phase),a
   ret
 
@@ -959,9 +991,9 @@ sprite_left:
   ret
 
 
-; Graphics I, 16K VRAM, display enabled, no interrupt.
+; Graphics I, 16K VRAM, display disabled until menu setup completes.
 vdpregs:
-.db $00,$C2,$06,$80,$00,$36,$07,$01
+.db $00,$82,$06,$80,$00,$36,$07,$01
 heights:
 .INCBIN "build/sg1000/prototype/heights.bin"
 ground_map:

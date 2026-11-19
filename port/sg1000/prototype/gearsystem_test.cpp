@@ -134,12 +134,25 @@ int main(int argc, char** argv) {
     Simulation idle(argv[1]);
     idle.frames(100);
     assert(idle.byte(0xC00D) == 0x06);
-    idle.frames(90);
+    idle.frames(230);
+    assert(idle.byte(0xC00D) == 0x06);
+    idle.frames(40);
     for (int i = 0; i < 100; ++i) {
         idle.frames(1);
         int frame = idle.byte(0xC00D);
         assert(frame == 0x15 || frame == 0x16 || frame == 0x17);
     }
+    // Force the sequence boundaries and the SMS loop back to index 34.
+    idle.set_byte(0xC016, 0x68);
+    idle.set_byte(0xC019, 1);
+    const int phases[] = {0, 15, 16, 33, 34, 49, 50, 65};
+    const int expected[] = {0x16, 0x16, 0x15, 0x15, 0x16, 0x16, 0x17, 0x17};
+    for (int i = 0; i < 8; ++i) {
+        idle.set_byte(0xC017, phases[i]);
+        idle.frames(1);
+        assert(idle.byte(0xC00D) == expected[i]);
+    }
+    assert(idle.byte(0xC017) == 34);
     idle.press(Key_Down);
     idle.frames(3);
     assert(idle.byte(0xC00D) == 0x07 && idle.vx() == 0);
