@@ -9,6 +9,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'port/sg1000'))
 import prepare_sonic
+import layered_sonic
 
 # Pixel-height steps, each eight pixels wide. Stairs approximate slopes.
 HEIGHTS = [160] * 8 + [152, 144, 136, 128, 120] + [120] * 4 + [128, 136, 144, 152, 160] + [160] * 10
@@ -34,6 +35,14 @@ def main():
                         'annot/sonic1.cfg', 'src/whole.asm'], cwd=ROOT,
                        check=True, stdout=subprocess.DEVNULL)
         prepare_sonic.prepare(data, out / 'sonic')
+        palette = (data / 'lv_ghz.pal3').read_bytes()[16:]
+        frames = bytearray()
+        for direction in ('r', 'l'):
+            for index in range(0x2a):
+                frame = (data / 'sonic_{:02X}_{}.sonicuncart'.format(index, direction)).read_bytes()
+                patterns, colours = layered_sonic.convert(frame, palette)
+                frames.extend(patterns + colours)
+        (out / 'sonic_frames.bin').write_bytes(frames)
         assert len(HEIGHTS) == 32 and all(h % 8 == 0 for h in HEIGHTS)
         (out / 'heights.bin').write_bytes(bytes(HEIGHTS))
         (out / 'ground.bin').write_bytes(bytes(

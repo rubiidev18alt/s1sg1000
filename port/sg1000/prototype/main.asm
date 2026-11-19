@@ -23,6 +23,8 @@ facing db
 frame_tick db
 frame_id db
 controls db
+previous_controls db
+viewer_frame db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -46,6 +48,8 @@ init:
   ld (jump_latch),a
   ld (facing),a
   ld (frame_tick),a
+  ld (previous_controls),a
+  ld (viewer_frame),a
   ld hl,$1800             ; 24 pixels
   ld (xpos),hl
   ld hl,$8000             ; top y=128, ground y=160
@@ -105,10 +109,18 @@ wait_vblank:
   in a,($DC)
   cpl
   ld (controls),a
+  bit 5,a
+  jr nz,preview_frame
   call physics_x
   call physics_y
   call animate
+  jr frame_draw
+preview_frame:
+  call animation_viewer
+frame_draw:
   call draw_sonic
+  ld a,(controls)
+  ld (previous_controls),a
   jr main_loop
 
 ; Set a VRAM write address from HL, already ORed with $4000.
@@ -332,19 +344,56 @@ animate:
   ld (frame_tick),a
   ld a,(grounded)
   or a
-  jr nz,anim_ground
-  ld a,7                 ; rolling/jump frame 08
-  ld (frame_id),a
-  ret
-anim_ground:
+  jr z,anim_spin
+  ld a,(controls)
+  bit 0,a
+  jr z,not_looking_up
+  ld a,$14
+  jr anim_save
+not_looking_up:
+  bit 1,a
+  jr z,not_looking_down
   ld hl,(xvel)
   ld a,h
   or l
-  jr nz,anim_run
-  ld a,6                 ; standing frame 06
-  ld (frame_id),a
-  ret
-anim_run:
+  jr nz,anim_spin
+  ld a,$07
+  jr anim_save
+not_looking_down:
+  ld hl,(xvel)
+  ld a,h
+  or l
+  jr nz,anim_running
+  ; Original standing frame, with occasional idle animation frames.
+  ld a,(frame_tick)
+  cp 192
+  jr c,anim_still
+  rrca
+  rrca
+  rrca
+  rrca
+  and 3
+  add a,$15
+  jr anim_save
+anim_still:
+  ld a,$06
+  jr anim_save
+anim_running:
+  ld a,(controls)
+  bit 3,a
+  jr z,check_brake_left
+  bit 7,h
+  jr nz,anim_brake
+check_brake_left:
+  bit 2,a
+  jr z,anim_walk
+  bit 7,h
+  jr nz,anim_walk
+  jr anim_brake
+anim_brake:
+  ld a,$13
+  jr anim_save
+anim_walk:
   ld a,(frame_tick)
   rrca
   rrca
@@ -353,23 +402,63 @@ anim_run:
   cp 6
   jr c,anim_save
   sub 6
+  jr anim_save
+anim_spin:
+  ld a,(frame_tick)
+  rrca
+  rrca
+  and 3
+  add a,$08
 anim_save:
   ld (frame_id),a
   ret
 
-draw_sonic:
-  ; Select patterns and colours for animation frame and facing.
-  ld a,(facing)
-  add a,a
-  add a,a
-  add a,a
+; Hold button 2 and tap left/right to inspect every frame, including
+; frames for actions the prototype does not implement yet.
+animation_viewer:
+  ld a,(controls)
   ld b,a
+  ld a,(previous_controls)
+  cpl
+  and b
+  bit 3,a
+  jr z,viewer_check_left
+  ld a,(viewer_frame)
+  inc a
+  cp 42
+  jr c,viewer_store
+  xor a
+  jr viewer_store
+viewer_check_left:
+  bit 2,a
+  jr z,viewer_use
+  ld a,(viewer_frame)
+  or a
+  jr nz,viewer_dec
+  ld a,42
+viewer_dec:
+  dec a
+viewer_store:
+  ld (viewer_frame),a
+viewer_use:
+  ld a,(viewer_frame)
+  ld (frame_id),a
+  ret
+
+draw_sonic:
+  ; Each frame is 256 pattern bytes followed by 8 sprite colours.
   ld a,(frame_id)
-  add a,b
+  ld e,a
+  ld a,(facing)
+  or a
+  ld a,e
+  jr z,frame_index_ready
+  add a,42
+frame_index_ready:
   add a,a
   ld e,a
   ld d,0
-  ld hl,pattern_ptrs
+  ld hl,frame_ptrs
   add hl,de
   ld e,(hl)
   inc hl
@@ -378,70 +467,38 @@ draw_sonic:
   ld hl,$7800
   call vdp_addr
   pop hl
-  ld bc,96
+  ld bc,256
   call vdp_copy
-  ld a,(facing)
-  add a,a
-  add a,a
-  add a,a
-  ld b,a
-  ld a,(frame_id)
-  add a,b
-  add a,a
-  ld e,a
-  ld d,0
-  ld hl,colour_ptrs
-  add hl,de
-  ld e,(hl)
-  inc hl
-  ld d,(hl)
-  ex de,hl
   push hl
   ld hl,$5B00
   call vdp_addr
   pop hl
-  ; Original 12 tiles are in 8x16 pairs, three columns by two rows.
-  ; Emit 12 8x8 hardware sprites, no more than 3 per scanline.
+  ; Two 16x16 layers in each 16x16 quadrant: four sprites per scanline.
   ld b,0
 sprite_loop:
-  ld a,b
-  and 1
-  add a,a
-  add a,a
-  add a,a
-  ld c,a
-  ld a,b
-  cp 6
-  jr c,sprite_y_ready
-  ld a,c
-  add a,16
-  ld c,a
-sprite_y_ready:
   ld a,(ypos+1)
-  add a,c
-  dec a                   ; TMS sprite Y is top minus one
+  bit 2,b
+  jr z,sprite_top
+  add a,16
+sprite_top:
+  dec a
   out ($BE),a
-  ld a,b
-  cp 6
-  jr c,column_in_first_half
-  sub 6
-column_in_first_half:
-  srl a
-  add a,a
-  add a,a
-  add a,a
-  ld c,a
   ld a,(xpos+1)
-  add a,c
+  bit 1,b
+  jr z,sprite_left
+  add a,16
+sprite_left:
   out ($BE),a
   ld a,b
+  add a,a
+  add a,a
   out ($BE),a
   ld a,(hl)
   out ($BE),a
   inc hl
   inc b
   ld a,b
-  cp 12
+  cp 8
   jr nz,sprite_loop
   ld a,$D0
   out ($BE),a
@@ -450,78 +507,95 @@ column_in_first_half:
 
 ; Graphics I, 16K VRAM, display enabled, no interrupt.
 vdpregs:
-.db $00,$C0,$06,$80,$00,$36,$07,$01
+.db $00,$C2,$06,$80,$00,$36,$07,$01
 heights:
 .INCBIN "build/sg1000/prototype/heights.bin"
 ground_map:
 .INCBIN "build/sg1000/prototype/ground.bin"
-pattern_ptrs:
-.dw r00p,r01p,r02p,r03p,r04p,r05p,r06p,r08p
-.dw l00p,l01p,l02p,l03p,l04p,l05p,l06p,l08p
-colour_ptrs:
-.dw r00c,r01c,r02c,r03c,r04c,r05c,r06c,r08c
-.dw l00c,l01c,l02c,l03c,l04c,l05c,l06c,l08c
-r00p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_00_r.patterns"
-r00c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_00_r.colours"
-r01p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_01_r.patterns"
-r01c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_01_r.colours"
-r02p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_02_r.patterns"
-r02c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_02_r.colours"
-r03p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_03_r.patterns"
-r03c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_03_r.colours"
-r04p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_04_r.patterns"
-r04c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_04_r.colours"
-r05p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_05_r.patterns"
-r05c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_05_r.colours"
-r06p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_06_r.patterns"
-r06c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_06_r.colours"
-r08p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_08_r.patterns"
-r08c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_08_r.colours"
-l00p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_00_l.patterns"
-l00c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_00_l.colours"
-l01p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_01_l.patterns"
-l01c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_01_l.colours"
-l02p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_02_l.patterns"
-l02c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_02_l.colours"
-l03p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_03_l.patterns"
-l03c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_03_l.colours"
-l04p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_04_l.patterns"
-l04c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_04_l.colours"
-l05p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_05_l.patterns"
-l05c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_05_l.colours"
-l06p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_06_l.patterns"
-l06c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_06_l.colours"
-l08p:
-.INCBIN "build/sg1000/prototype/sonic/sonic_08_l.patterns"
-l08c:
-.INCBIN "build/sg1000/prototype/sonic/sonic_08_l.colours"
+frame_ptrs:
+.dw frame_data + 0
+.dw frame_data + 264
+.dw frame_data + 528
+.dw frame_data + 792
+.dw frame_data + 1056
+.dw frame_data + 1320
+.dw frame_data + 1584
+.dw frame_data + 1848
+.dw frame_data + 2112
+.dw frame_data + 2376
+.dw frame_data + 2640
+.dw frame_data + 2904
+.dw frame_data + 3168
+.dw frame_data + 3432
+.dw frame_data + 3696
+.dw frame_data + 3960
+.dw frame_data + 4224
+.dw frame_data + 4488
+.dw frame_data + 4752
+.dw frame_data + 5016
+.dw frame_data + 5280
+.dw frame_data + 5544
+.dw frame_data + 5808
+.dw frame_data + 6072
+.dw frame_data + 6336
+.dw frame_data + 6600
+.dw frame_data + 6864
+.dw frame_data + 7128
+.dw frame_data + 7392
+.dw frame_data + 7656
+.dw frame_data + 7920
+.dw frame_data + 8184
+.dw frame_data + 8448
+.dw frame_data + 8712
+.dw frame_data + 8976
+.dw frame_data + 9240
+.dw frame_data + 9504
+.dw frame_data + 9768
+.dw frame_data + 10032
+.dw frame_data + 10296
+.dw frame_data + 10560
+.dw frame_data + 10824
+.dw frame_data + 11088
+.dw frame_data + 11352
+.dw frame_data + 11616
+.dw frame_data + 11880
+.dw frame_data + 12144
+.dw frame_data + 12408
+.dw frame_data + 12672
+.dw frame_data + 12936
+.dw frame_data + 13200
+.dw frame_data + 13464
+.dw frame_data + 13728
+.dw frame_data + 13992
+.dw frame_data + 14256
+.dw frame_data + 14520
+.dw frame_data + 14784
+.dw frame_data + 15048
+.dw frame_data + 15312
+.dw frame_data + 15576
+.dw frame_data + 15840
+.dw frame_data + 16104
+.dw frame_data + 16368
+.dw frame_data + 16632
+.dw frame_data + 16896
+.dw frame_data + 17160
+.dw frame_data + 17424
+.dw frame_data + 17688
+.dw frame_data + 17952
+.dw frame_data + 18216
+.dw frame_data + 18480
+.dw frame_data + 18744
+.dw frame_data + 19008
+.dw frame_data + 19272
+.dw frame_data + 19536
+.dw frame_data + 19800
+.dw frame_data + 20064
+.dw frame_data + 20328
+.dw frame_data + 20592
+.dw frame_data + 20856
+.dw frame_data + 21120
+.dw frame_data + 21384
+.dw frame_data + 21648
+.dw frame_data + 21912
+frame_data:
+.INCBIN "build/sg1000/prototype/sonic_frames.bin"

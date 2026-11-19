@@ -103,3 +103,14 @@ GEARSYSTEM_DIR=/path/to/Gearsystem port/sg1000/prototype/test_gearsystem.sh
 
 The emulator test covers acceleration, reversal, edge limits, the hill, jump
 height, and landing; it does not establish cycle-accurate SMS physics.
+
+### Sprite and animation experiment
+
+The sandbox uses two overlapping 16x16 TMS sprites per quadrant, choosing up to
+two fixed-palette colours for each quadrant. The 24x32 source art is padded
+to 32x32. This improves colour detail but uses all four available sprites per
+scanline, so adding enemies will require a different sprite budget or flicker.
+All 42 frame indices are included for both directions. Walking, jumping,
+looking, braking and idle use selected frames; other game actions are not
+implemented. To inspect all frames, hold button 2 and tap left/right. Releasing
+button 2 resumes the sandbox; the preview does not advance physics.
