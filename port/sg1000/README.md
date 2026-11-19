@@ -97,8 +97,9 @@ Grounded roll braking follows the original opposite-direction input behavior.
 The downhill friction exemption applies only to TEST and is a prototype
 approximation, not a port of the SMS slope acceleration system. TEST uses a
 simple centre-point height lookup with 8-pixel steps. GHZ1 uses the original
-floor profiles, but all surfaces currently use one-way, centre-point collision:
-there are no solid walls, ceilings, moving platforms, or original level objects.
+floor profiles. Original solid-block profile 22 also blocks both sides and
+the underside; other floor profiles remain one-way. Wall and ceiling probes
+are approximate, and there are no moving platforms or original level objects.
 There is no complete SMS slope and rolling physics or sound.
 In both levels the camera is offset 16 pixels to the right of its original
 prototype position, giving more view ahead. The camera follows horizontally
@@ -116,7 +117,9 @@ GEARSYSTEM_DIR=/path/to/Gearsystem port/sg1000/prototype/test_gearsystem.sh
 ```
 
 The emulator test covers acceleration, reversal, edge limits, both camera axes, hills, jump
-height, landing, menu confirmation, animation preview, rolling friction and both downhill directions; it does not establish cycle-accurate SMS physics.
+height, landing, menu confirmation, animation preview, rolling friction, GHZ
+wall/ceiling/one-way collisions, the GHZ camera limit, and both downhill
+directions; it does not establish cycle-accurate SMS physics.
 
 ### Sprite and animation experiment
 
@@ -171,18 +174,24 @@ The GHZ1 menu option starts a second test level using the original
 8192×512 collision layout and original spawn position. A cyan background and
 green 8×8 silhouettes show the terrain. The graphics are generated from the
 collision profiles, not the original level art, so non-colliding scenery is
-not shown and slopes are visually approximated. All terrain surfaces act as
-semisolids: Sonic can pass through from below and land on top; full solid
-walls, ceilings and original moving platform objects are not yet implemented.
+not shown and slopes are visually approximated. The SMS full-solid profile blocks walls and ceilings, while the remaining
+floor profiles act as semisolids: Sonic can pass through them from below and
+land on top. These are simplified collision probes, not a complete SMS
+collision port; original moving platform objects are not yet implemented.
 Falling below the map respawns Sonic. No enemies or other objects are present.
 
 The prototype packs the collision-profile IDs into row-indexed runs, with the
 floor profiles used by the layout. Z80 routines read the metatiles and their
 pixel-accurate floor offsets without storing the map in the SG-1000's 1 KiB
 RAM. The GHZ1 camera uses a 16-bit horizontal tile coordinate and follows both
-axes across the full map; it still redraws in 8-pixel increments rather than
-smoothly scrolling. The redraw can tear or slow down gameplay, and collision
-and movement remain provisional rather than faithful SMS physics.
+axes up to the original GHZ1 right camera limit, x=6336. Sonic is clamped
+at x=6559, just inside that camera boundary, rather than entering the unused
+end of the larger layout. A precomputed run-length-encoded silhouette allows
+the name table to be streamed much faster while preserving the same look.
+A Gearsystem movement test recorded 120 simulation updates in 120 video
+frames in the starting area; this is not a guarantee for every situation.
+The 8-pixel redraw may still tear, and movement remains provisional rather
+than faithful SMS physics.
 
 The Gearsystem test also builds a separate probe ROM to exercise the actual
 Z80 lookup routines. Set `WLA_Z80` and `WLALINK` if those tools are not on

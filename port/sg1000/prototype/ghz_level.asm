@@ -1,5 +1,6 @@
 ; Provisional GHZ1 second test level. Terrain uses SMS floor profiles, sampled
-; to 8x8 for the display. Collision is top-only, not full SMS wall physics.
+; to 8x8 for the display. Solid profile 22 blocks walls and ceilings;
+; other floor profiles remain one-way. Collision is still approximate.
 ghz_init:
   xor a
   ld (xpos),a
@@ -27,6 +28,7 @@ ghz_init:
   ret
 
 ghz_x_limit:
+  call ghz_wall_x
   ; SMS GHZ1 camera right limit is $18C0 = 6336 pixels.
   ; SMS player clamp is camera limit + $F8 - $18 - 1 = 6559.
   ld a,(xpage)
@@ -45,6 +47,163 @@ ghz_right_edge:
   ld (xvel),hl
   ret
 
+; Only original profile 22 has left/right/ceiling surfaces in GHZ1. All
+; other floor profiles remain one-way, including the raised start platform.
+; Probe one pixel beyond the leading edge at two heights.
+ghz_wall_x:
+  ld hl,(xvel)
+  ld a,h
+  or l
+  ret z
+  ld a,(xpos+1)
+  ld l,a
+  ld a,(xpage)
+  ld h,a
+  ld a,(xvel+1)
+  bit 7,a
+  jr nz,ghz_wall_probe_left
+  ld de,24
+  add hl,de
+  jr ghz_wall_probe_ready
+ghz_wall_probe_left:
+  dec hl
+ghz_wall_probe_ready:
+  ld (ghz_probe_x),hl
+  ld a,(ypos+1)
+  ld l,a
+  ld a,(ypage)
+  ld h,a
+  ld de,8
+  add hl,de
+  ld (ghz_probe_y),hl
+  call ghz_collision_at
+  cp 22
+  jr z,ghz_wall_block
+  ld hl,(ghz_probe_y)
+  ld de,16
+  add hl,de
+  ld (ghz_probe_y),hl
+  call ghz_collision_at
+  cp 22
+  ret nz
+ghz_wall_block:
+  ld hl,(ghz_probe_x)
+  ld a,l
+  and $E0
+  ld l,a
+  ld a,(xvel+1)
+  bit 7,a
+  jr nz,ghz_wall_block_left
+  ld de,24
+  or a
+  sbc hl,de
+  jr ghz_wall_store
+ghz_wall_block_left:
+  ld de,32
+  add hl,de
+ghz_wall_store:
+  ld a,h
+  ld (xpage),a
+  ld a,l
+  ld (xpos+1),a
+  xor a
+  ld (xpos),a
+  ld (xvel),a
+  ld (xvel+1),a
+  ret
+
+; Read a metatile collision type from pixel coordinates in probe_x/probe_y.
+; Returns zero outside the 512-pixel-high layout.
+ghz_collision_at:
+  ld hl,(ghz_probe_y)
+  ld a,h
+  cp 2
+  jr c,ghz_probe_y_valid
+  xor a
+  ret
+ghz_probe_y_valid:
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  ld d,l
+  ld hl,(ghz_probe_x)
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  ld e,l
+  jp ghz_collision_type
+
+; A solid block also stops upward motion at its bottom. Semisolid profiles
+; have no ceiling: Sonic can continue through them from below.
+ghz_ceiling:
+  ld a,(ypos+1)
+  ld l,a
+  ld a,(ypage)
+  ld h,a
+  ld (ghz_probe_y),hl
+  ld a,l
+  and $E0
+  ld l,a
+  ld de,(ghz_old_feet)
+  ex de,hl
+  ld bc,32
+  or a
+  sbc hl,bc             ; old top
+  ld a,l
+  and $E0
+  ld l,a
+  or a
+  sbc hl,de
+  ret z
+  ld a,(xpos+1)
+  ld l,a
+  ld a,(xpage)
+  ld h,a
+  ld de,4
+  add hl,de
+  ld (ghz_probe_x),hl
+  call ghz_collision_at
+  cp 22
+  jr z,ghz_ceiling_block
+  ld hl,(ghz_probe_x)
+  ld de,15
+  add hl,de
+  ld (ghz_probe_x),hl
+  call ghz_collision_at
+  cp 22
+  ret nz
+ghz_ceiling_block:
+  ld hl,(ghz_probe_y)
+  ld a,l
+  and $E0
+  ld l,a
+  ld de,32
+  add hl,de
+  ld a,h
+  ld (ypage),a
+  ld a,l
+  ld (ypos+1),a
+  xor a
+  ld (ypos),a
+  ld (yvel),a
+  ld (yvel+1),a
+  ld (jump_timer),a
+  ret
+
 ghz_save_old_feet:
   ld a,(ypos+1)
   ld l,a
@@ -56,10 +215,10 @@ ghz_save_old_feet:
   ret
 
 ghz_landing:
-  ; Do not land while moving upward. If Sonic falls below the map, restart.
+  ; Check solid ceilings while rising; respawn if falling below the map.
   ld hl,(yvel)
   bit 7,h
-  ret nz
+  jp nz,ghz_ceiling
   ld a,(ypage)
   cp 2
   jp nc,ghz_respawn

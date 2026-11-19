@@ -106,12 +106,50 @@ int main(int argc, char** argv) {
     }
     assert(passed_upward && min_y < 368);
     assert(button2.y() == 368 && button2.grounded());
+    // Profile 22 is a solid block: it stops side and underside crossings.
+    // Row 12, column 15 is solid, with empty space immediately to its left.
+    button2.set_x(454);
+    button2.set_y(384);
+    button2.set_word(0xC004, 0x0300);
+    button2.set_word(0xC006, 0);
+    button2.set_byte(0xC008, 0);
+    button2.press(Key_Right);
+    button2.frames(4);
+    assert(button2.x() == 456 && button2.vx() == 0);
+    button2.release(Key_Right);
+    button2.frames(3);
+    // Row 12, column 24 ends at x=800 with empty space to its right.
+    button2.set_x(802);
+    button2.set_y(384);
+    button2.set_word(0xC004, 0xFD00);
+    button2.set_word(0xC006, 0);
+    button2.set_byte(0xC008, 0);
+    button2.press(Key_Left);
+    button2.frames(4);
+    assert(button2.x() == 800 && button2.vx() == 0);
+    button2.release(Key_Left);
+    button2.frames(3);
+    // Row 13 at the starting x has a solid underside at y=448.
+    button2.set_x(256);
+    button2.set_y(450);
+    button2.set_word(0xC004, 0);
+    button2.set_word(0xC006, 0xFC80);
+    button2.set_byte(0xC008, 0);
+    button2.frames(4);
+    assert(button2.y() >= 448 && static_cast<short>(button2.word(0xC006)) >= 0);
+    // Return to the start platform for the movement rate measurement.
+    button2.set_x(256);
+    button2.set_y(368);
+    button2.set_word(0xC004, 0);
+    button2.set_word(0xC006, 0);
+    button2.set_byte(0xC008, 1);
+    button2.frames(5);
     int ghz_tick_before = button2.byte(0xC00C);
     button2.press(Key_Right);
     button2.frames(120);
     int ghz_ticks = (button2.byte(0xC00C) - ghz_tick_before) & 255;
     std::printf("GHZ updates in 120 video frames: %d\n", ghz_ticks);
-    assert(ghz_ticks >= 100);
+    assert(ghz_ticks >= 115);
     button2.release(Key_Right);
     button2.frames(10);
     assert(button2.x() > 270);

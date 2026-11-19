@@ -54,6 +54,8 @@ ghz_screen_col db
 ghz_last_row db
 test_draw_row db
 ghz_buffer dsb 9
+ghz_probe_x dw
+ghz_probe_y dw
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
