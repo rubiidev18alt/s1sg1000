@@ -52,6 +52,7 @@ ghz_render_x dw
 ghz_screen_row db
 ghz_screen_col db
 ghz_last_row db
+test_draw_row db
 ghz_buffer dsb 9
 .ENDS
 .BANK 0 SLOT 0
@@ -845,28 +846,27 @@ camera_changed:
   ld (camera_x),a
   ld a,b
   ld (camera_y),a
-  ; world map address = base + camera_y * 96 + camera_x
+  ; One pointer per row; identical test-course rows share ROM storage.
   ld l,b
   ld h,0
-  add hl,hl                ; * 2
-  add hl,hl                ; * 4
-  add hl,hl                ; * 8
-  add hl,hl                ; * 16
-  add hl,hl                ; * 32
-  ld d,h
-  ld e,l
-  add hl,hl                ; * 64
-  add hl,de                ; * 96
+  add hl,hl
+  ld de,ground_rows
+  add hl,de
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ld hl,ground_map
+  add hl,de
   ld e,c
   ld d,0
-  add hl,de
-  ld de,ground_map
   add hl,de
   push hl
   ld hl,$5800
   call vdp_addr
   pop hl
   ld b,24
+  ld a,(camera_y)
+  ld (test_draw_row),a
 camera_row:
   ld c,32
 camera_col:
@@ -875,7 +875,22 @@ camera_col:
   inc hl
   dec c
   jr nz,camera_col
-  ld de,64
+  ld a,(test_draw_row)
+  inc a
+  ld (test_draw_row),a
+  ld l,a
+  ld h,0
+  add hl,hl
+  ld de,ground_rows
+  add hl,de
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ld hl,ground_map
+  add hl,de
+  ld a,(camera_x)
+  ld e,a
+  ld d,0
   add hl,de
   djnz camera_row
   ret
@@ -1288,6 +1303,8 @@ vdpregs:
 .db $00,$82,$06,$80,$00,$36,$07,$01
 heights:
 .INCBIN "build/sg1000/prototype/heights.bin"
+ground_rows:
+.INCBIN "build/sg1000/prototype/ground_rows.bin"
 ground_map:
 .INCBIN "build/sg1000/prototype/ground.bin"
 frame_ptrs:

@@ -89,9 +89,12 @@ def main():
         (out / 'sonic_frames.bin').write_bytes(frames)
         assert len(HEIGHTS) == WORLD_WIDTH and all(h % 8 == 0 for h in HEIGHTS)
         (out / 'heights.bin').write_bytes(b''.join(h.to_bytes(2, 'little') for h in HEIGHTS))
-        (out / 'ground.bin').write_bytes(bytes(
-            1 if y * 8 >= HEIGHTS[x] else 0
-            for y in range(WORLD_HEIGHT) for x in range(WORLD_WIDTH)))
+        rows = [bytes(int(y * 8 >= HEIGHTS[x]) for x in range(WORLD_WIDTH))
+                for y in range(WORLD_HEIGHT)]
+        unique = list(dict.fromkeys(rows))
+        (out / 'ground.bin').write_bytes(b''.join(unique))
+        (out / 'ground_rows.bin').write_bytes(b''.join(
+            (unique.index(row) * WORLD_WIDTH).to_bytes(2, 'little') for row in rows))
         subprocess.run([args.wla_z80, '-o', str(out / 'prototype.o'),
                         'port/sg1000/prototype/main.asm'], cwd=ROOT, check=True)
         (out / 'prototype.lnk').write_text('[objects]\n' + str(out / 'prototype.o') + '\n')
