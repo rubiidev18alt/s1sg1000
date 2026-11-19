@@ -513,7 +513,8 @@ ghz_camera_changed:
   ld (camera_y),a
   jp ghz_draw_map
 
-; Each source row is RLE-compressed as an 11-bit count and two-bit tile type.
+; Each row uses type in the top two bits, with a five-bit short count;
+; bit 5 indicates a long count with its low byte in the following byte.
 ; Skip camera_x cells and stream just 32 cells per row to the name table.
 ; This retains exactly the previous 8-pixel silhouette without repeated
 ; metatile lookups or per-cell multiplications.
@@ -635,17 +636,24 @@ ghz_row_done:
 
 ; HL points to packed run, returns BC=count and preserves DE.
 ghz_read_run:
-  ld c,(hl)
-  inc hl
   ld a,(hl)
   inc hl
   push af
-  and 7
+  ld b,0
+  bit 5,a
+  jr z,ghz_run_short
+  and 31
   ld b,a
+  ld c,(hl)
+  inc hl
+  jr ghz_run_count_ready
+ghz_run_short:
+  and 31
+  ld c,a
+ghz_run_count_ready:
   pop af
-  rrca
-  rrca
-  rrca
+  rlca
+  rlca
   and 3
   jr z,ghz_run_value_ready
   dec a

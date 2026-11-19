@@ -93,12 +93,16 @@ class RuntimeLayoutTest(unittest.TestCase):
             pos = 128 + int.from_bytes(encoded[2*y:2*y+2], 'little')
             actual = []
             while len(actual) < 1024:
-                run = int.from_bytes(encoded[pos:pos+2], 'little')
-                count, tile_type = run & 0x7ff, run >> 11
+                run = encoded[pos]
+                pos += 1
+                tile_type = run >> 6
+                count = run & 31
+                if run & 32:
+                    count = (count << 8) | encoded[pos]
+                    pos += 1
                 self.assertIn(tile_type, (0, 1, 2))
                 self.assertGreater(count, 0)
                 actual.extend([tile_type] * count)
-                pos += 2
             expected = []
             for x in range(1024):
                 kind = flags[layout[(y//4)*256 + x//4]] & 63

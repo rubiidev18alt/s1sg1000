@@ -100,7 +100,7 @@ def ghz_terrain_patterns(art):
 
 
 def ghz_visual_rows(rom):
-    """Pack collision silhouettes with surface/soil into 11-bit RLE runs.
+    """Pack collision silhouettes with surface/soil into short/long RLE runs.
 
     Two high bits select sky, solid terrain or grass. The occupancy is
     unchanged; grass marks occupied cells with an empty cell directly above.
@@ -122,7 +122,10 @@ def ghz_visual_rows(rom):
         packed = bytearray()
         for value, group in groupby(types):
             count = sum(1 for _ in group)
-            packed.extend((count | value << 11).to_bytes(2, 'little'))
+            if count <= 31:
+                packed.append(value << 6 | count)
+            else:
+                packed.extend((value << 6 | 0x20 | count >> 8, count & 255))
         rows.append(bytes(packed))
     offsets = bytearray()
     cursor = 0
