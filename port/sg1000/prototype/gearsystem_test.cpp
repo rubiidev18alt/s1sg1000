@@ -44,6 +44,8 @@ struct Simulation {
     int camera_y() { return byte(0xC014); }
     int vx() { return static_cast<short>(word(0xC004)); }
     int grounded() { return core.GetMemory()->Retrieve(0xC008); }
+    int sprite_y() { return core.GetVideo()->GetVRAM()[0x1B00]; }
+    int expected_sprite_y(int offset) { return (y() - camera_y() * 8 + offset - 1) & 255; }
     void press(GS_Keys key) { core.KeyPressed(Joypad_1, key); }
     void release(GS_Keys key) { core.KeyReleased(Joypad_1, key); }
 };
@@ -141,9 +143,11 @@ int main(int argc, char** argv) {
     idle.press(Key_Down);
     idle.frames(3);
     assert(idle.byte(0xC00D) == 0x07 && idle.vx() == 0);
+    assert(idle.sprite_y() == idle.expected_sprite_y(8));
     idle.release(Key_Down);
     idle.frames(3);
     assert(idle.byte(0xC00D) == 0x06);
+    assert(idle.sprite_y() == idle.expected_sprite_y(0));
     // Down while moving starts a ground roll. On flat ground it loses speed
     // and stays rolling after down is released, then returns to standing.
     Simulation roll(argv[1]);
@@ -154,6 +158,8 @@ int main(int argc, char** argv) {
     roll.frames(2);
     assert(roll.grounded() && roll.byte(0xC015) == 1);
     assert(roll.byte(0xC00D) >= 8 && roll.byte(0xC00D) <= 11);
+    int ball_frame = roll.byte(0xC00D);
+    assert(roll.sprite_y() == roll.expected_sprite_y((ball_frame == 8 || ball_frame == 10) ? 9 : 8));
     int roll_speed = roll.vx();
     roll.release(Key_Down);
     roll.frames(2);
@@ -186,6 +192,21 @@ int main(int argc, char** argv) {
     uphill.press(Key_1);
     uphill.frames(2);
     assert(!uphill.grounded() && uphill.byte(0xC015) == 0);
+    assert(uphill.sprite_y() == uphill.expected_sprite_y(0));
+    // Check all short source frames in both facing directions, including the
+    // alternate rolling frame 0C, through the animation viewer.
+    Simulation short_frames(argv[1]);
+    short_frames.press(Key_2);
+    for (int facing = 0; facing < 2; ++facing) {
+        short_frames.set_byte(0xC00B, facing);
+        for (int frame = 7; frame <= 12; ++frame) {
+            short_frames.set_byte(0xC010, frame);
+            short_frames.frames(2);
+            assert(short_frames.byte(0xC00D) == frame);
+            assert(short_frames.sprite_y() == short_frames.expected_sprite_y(
+                (frame == 8 || frame == 10) ? 9 : 8));
+        }
+    }
     Simulation viewer(argv[1]);
     viewer.press(Key_2);
     viewer.press(Key_Right);

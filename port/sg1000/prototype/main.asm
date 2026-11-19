@@ -32,6 +32,7 @@ camera_y db
 rolling db
 idle_timer db
 idle_phase db
+sprite_draw_y db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -864,9 +865,10 @@ frame_index_ready:
   ld hl,$5B00
   call vdp_addr
   pop hl
-  ; Two 16x16 layers in each 16x16 quadrant: four sprites per scanline.
-  ld b,0
-sprite_loop:
+  ; Position short crouch/rolling frames at the feet, without changing the
+  ; world position or collision box. Their art occupies only the upper 23/24
+  ; rows; the normal standing frame fills all 32 rows. Keep airborne spin
+  ; centred at its original position.
   ld a,(camera_y)
   add a,a
   add a,a
@@ -874,6 +876,32 @@ sprite_loop:
   ld c,a
   ld a,(ypos+1)
   sub c
+  ld c,a
+  ld a,(grounded)
+  or a
+  jr z,sprite_y_offset_done
+  ld a,(frame_id)
+  cp $07
+  jr c,sprite_y_offset_done
+  cp $0D
+  jr nc,sprite_y_offset_done
+  ld a,c
+  add a,8
+  ld c,a
+  ld a,(frame_id)
+  cp $08
+  jr z,sprite_extra_pixel
+  cp $0A
+  jr nz,sprite_y_offset_done
+sprite_extra_pixel:
+  inc c
+sprite_y_offset_done:
+  ld a,c
+  ld (sprite_draw_y),a
+  ; Two 16x16 layers in each 16x16 quadrant: four sprites per scanline.
+  ld b,0
+sprite_loop:
+  ld a,(sprite_draw_y)
   bit 2,b
   jr z,sprite_top
   add a,16
