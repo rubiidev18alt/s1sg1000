@@ -57,6 +57,7 @@ ghz_buffer dsb 9
 ghz_probe_x dw
 ghz_probe_y dw
 ghz_sensor_index db
+debug_mode db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -92,6 +93,7 @@ init:
   ld (anim_mode),a
   ld (anim_phase),a
   ld (anim_subframe),a
+  ld (debug_mode),a
   ld a,$FF
   ld (camera_x),a
   ld (camera_y),a
@@ -174,8 +176,31 @@ wait_vblank:
   in a,($DC)
   cpl
   ld (controls),a
+  ld b,a
+  ld a,(menu_selection)
+  or a
+  jr nz,ghz_input
+  ; In TEST, button 1 + button 2 retains the animation viewer. Button 2
+  ; alone toggles free movement on its rising edge.
+  ld a,b
+  and $30
+  cp $30
+  jr z,preview_frame
+  ld a,(previous_controls)
+  cpl
+  and b
+  bit 5,a
+  call nz,debug_toggle
+  ld a,(debug_mode)
+  or a
+  jr z,normal_frame
+  call debug_move
+  jr frame_draw
+ghz_input:
+  ld a,b
   bit 5,a
   jr nz,preview_frame
+normal_frame:
   call physics_x
   call physics_y
   call animate
@@ -188,6 +213,107 @@ frame_draw:
   ld a,(controls)
   ld (previous_controls),a
   jr main_loop
+
+; Button 2 changes modes once per press. Clear momentum and transient
+; actions both ways, so normal gravity resumes safely on exit.
+debug_toggle:
+  ld a,(debug_mode)
+  xor 1
+  ld (debug_mode),a
+  xor a
+  ld (xvel),a
+  ld (xvel+1),a
+  ld (yvel),a
+  ld (yvel+1),a
+  ld (jump_timer),a
+  ld (jump_latch),a
+  ld (rolling),a
+  ld (grounded),a
+  ld (idle_timer),a
+  ld (idle_timer_hi),a
+  ld (idle_phase),a
+  ld a,6
+  ld (frame_id),a
+  ret
+
+; TEST debug flight: 4 pixels per frame, including diagonals. Positions are
+; clamped to the existing course dimensions, but terrain collision is ignored.
+debug_move:
+  ld a,6
+  ld (frame_id),a
+  ld a,(xpos+1)
+  ld l,a
+  ld a,(xpage)
+  ld h,a
+  ld a,(controls)
+  bit 2,a
+  jr z,debug_right
+  bit 3,a
+  jr nz,debug_x_store
+  ld de,4
+  or a
+  sbc hl,de
+  jr nc,debug_face_left
+  ld hl,0
+debug_face_left:
+  ld a,1
+  ld (facing),a
+  jr debug_x_store
+debug_right:
+  bit 3,a
+  jr z,debug_x_store
+  ld de,4
+  add hl,de
+  ld de,744
+  or a
+  sbc hl,de
+  add hl,de
+  jr c,debug_face_right
+  ld hl,744
+debug_face_right:
+  xor a
+  ld (facing),a
+debug_x_store:
+  ld a,h
+  ld (xpage),a
+  ld a,l
+  ld (xpos+1),a
+  xor a
+  ld (xpos),a
+  ld a,(ypos+1)
+  ld l,a
+  ld a,(ypage)
+  ld h,a
+  ld a,(controls)
+  bit 0,a
+  jr z,debug_down
+  bit 1,a
+  jr nz,debug_y_store
+  ld de,4
+  or a
+  sbc hl,de
+  jr nc,debug_y_store
+  ld hl,0
+  jr debug_y_store
+debug_down:
+  bit 1,a
+  jr z,debug_y_store
+  ld de,4
+  add hl,de
+  ld de,352
+  or a
+  sbc hl,de
+  add hl,de
+  jr c,debug_y_store
+  ld hl,352
+debug_y_store:
+  ld a,h
+  ld (ypage),a
+  ld a,l
+  ld (ypos+1),a
+  xor a
+  ld (ypos),a
+  ret
 
 ; Set a VRAM write address from HL, already ORed with $4000.
 vdp_addr:
@@ -1172,8 +1298,8 @@ reset_idle:
   ld (idle_phase),a
   ret
 
-; Hold button 2 and tap left/right to inspect every frame, including
-; frames for actions the prototype does not implement yet.
+; In TEST hold buttons 1+2; in GHZ1 hold button 2. Tap left/right to
+; inspect frames, including actions the prototype does not implement yet.
 animation_viewer:
   ld a,(controls)
   ld b,a

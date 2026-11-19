@@ -92,6 +92,16 @@ int main(int argc, char** argv) {
         assert(vram2[0x1800 + i] == 0);          // sky
         assert(vram2[0x1800 + 15 * 32 + i] == 1); // ground
     }
+    // GHZ1 keeps the original hold-button-2 animation viewer; it does not
+    // toggle TEST debug mode.
+    button2.press(Key_2);
+    button2.press(Key_Right);
+    button2.frames(3);
+    assert(button2.byte(0xC00D) == 1 && button2.x() == 256);
+    assert(button2.byte(0xC03D) == 0);
+    button2.release(Key_Right);
+    button2.release(Key_2);
+    button2.frames(3);
     // The detached row-9 platform stays one-way. Start below its bottom,
     // pass through from below, then land on top.
     button2.set_x(900);
@@ -445,6 +455,7 @@ int main(int argc, char** argv) {
     // Check all short source frames in both facing directions, including the
     // alternate rolling frame 0C, through the animation viewer.
     Simulation short_frames(argv[1]);
+    short_frames.press(Key_1);
     short_frames.press(Key_2);
     for (int facing = 0; facing < 2; ++facing) {
         short_frames.set_byte(0xC00B, facing);
@@ -457,6 +468,7 @@ int main(int argc, char** argv) {
         }
     }
     Simulation viewer(argv[1]);
+    viewer.press(Key_1);
     viewer.press(Key_2);
     viewer.press(Key_Right);
     viewer.frames(2);
@@ -468,8 +480,65 @@ int main(int argc, char** argv) {
     viewer.press(Key_Right);
     viewer.frames(2);
     assert(viewer.byte(0xC00D) == 2 && viewer.x() == 24);
+    viewer.release(Key_1);
     viewer.release(Key_2);
     viewer.frames(20);
     assert(viewer.x() > 24);
+    // TEST button 2 toggles free flight once per press; terrain and gravity
+    // are ignored, but the world bounds and camera still apply.
+    Simulation debug(argv[1]);
+    assert(debug.byte(0xC03D) == 0);
+    debug.press(Key_2);
+    debug.frames(10);
+    assert(debug.byte(0xC03D) == 1 && debug.x() == 24 && debug.y() == 176);
+    debug.release(Key_2);
+    debug.frames(2);
+    debug.press(Key_Right);
+    debug.press(Key_Up);
+    debug.frames(10);
+    assert(debug.x() == 64 && debug.y() == 136);
+    debug.release(Key_Right);
+    debug.release(Key_Up);
+    debug.frames(10);
+    assert(debug.x() == 64 && debug.y() == 136); // no inertia/gravity
+    debug.press(Key_Up);
+    debug.frames(40);
+    debug.release(Key_Up);
+    assert(debug.y() == 0);
+    debug.press(Key_Down);
+    debug.frames(100);
+    debug.release(Key_Down);
+    assert(debug.y() == 352); // can fly through floor, clamped to map
+    assert(debug.camera_y() == 24);
+    debug.press(Key_Left);
+    debug.frames(30);
+    debug.release(Key_Left);
+    assert(debug.x() == 0 && debug.camera_x() == 0);
+    debug.set_x(740);
+    debug.press(Key_Right);
+    debug.frames(10);
+    debug.release(Key_Right);
+    assert(debug.x() == 744 && debug.camera_x() == 64);
+    debug.set_x(24);
+    debug.set_y(120);
+    debug.press(Key_2);
+    debug.frames(10);
+    assert(debug.byte(0xC03D) == 0); // hold does not re-toggle
+    assert(debug.y() > 120);           // normal gravity resumed
+    debug.release(Key_2);
+    debug.frames(60);
+    assert(debug.y() == 176 && debug.grounded());
+    debug.press(Key_2);
+    debug.frames(2);
+    debug.release(Key_2);
+    debug.press(Key_Down);
+    debug.frames(20);
+    debug.release(Key_Down);
+    assert(debug.y() > 176);
+    debug.press(Key_2);
+    debug.frames(2);
+    debug.release(Key_2);
+    debug.frames(3);
+    assert(debug.y() == 176 && debug.grounded()); // safely resolves overlap
     std::puts("Gearsystem SG-1000 physics smoke tests passed");
 }
