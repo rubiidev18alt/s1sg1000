@@ -12,6 +12,16 @@ spec.loader.exec_module(mod)
 
 
 class RuntimeLayoutTest(unittest.TestCase):
+    def test_solid_connectivity_does_not_cross_air_or_diagonals(self):
+        flags = bytes([0, 22, 16])
+        layout = bytearray(4096)
+        layout[256 + 1] = 1
+        layout[256 + 2] = 2  # touching the solid block
+        layout[2 * 256 + 3] = 2  # diagonal contact only
+        layout[4 * 256 + 4] = 2  # isolated platform
+        solid = mod.ghz_solid_cells(layout, flags)
+        self.assertEqual(solid, {257, 258})
+
     def test_all_runtime_collision_types_and_profiles(self):
         rom = ROOT / 'Sonic The Hedgehog (USA, Europe, Brazil) (En).sms'
         if not rom.exists():
@@ -20,6 +30,9 @@ class RuntimeLayoutTest(unittest.TestCase):
         _, layout, flags, floor, _ = mod.prepare_ghz_layout.extract(rom_data)
         encoded, profiles = mod.ghz_runtime_data(rom_data)
         self.assertEqual(profiles, floor[:23 * 32])
+        solid = mod.ghz_solid_cells(layout, flags)
+        self.assertIn(12 * 256 + 8, solid)  # starting terrain
+        self.assertNotIn(9 * 256 + 28, solid)  # detached platform
         for y in range(16):
             index = 32 + int.from_bytes(encoded[y*2:y*2+2], 'little')
             row = []
@@ -27,7 +40,8 @@ class RuntimeLayoutTest(unittest.TestCase):
                 count, kind = encoded[index:index+2]
                 row.extend([kind] * (count or 256))
                 index += 2
-            self.assertEqual(row, [flags[t] & 63 for t in layout[y*256:(y+1)*256]])
+            self.assertEqual(row, [(flags[t] & 63) | (128 if y * 256 + x in solid else 0)
+                                   for x, t in enumerate(layout[y*256:(y+1)*256])])
         self.assertLess(len(encoded) + len(profiles), 1400)
 
     def test_visual_rows_match_original_silhouette(self):

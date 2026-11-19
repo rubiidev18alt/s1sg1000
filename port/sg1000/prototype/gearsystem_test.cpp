@@ -92,20 +92,43 @@ int main(int argc, char** argv) {
         assert(vram2[0x1800 + i] == 0);          // sky
         assert(vram2[0x1800 + 15 * 32 + i] == 1); // ground
     }
-    // Start below the original start platform, travel up through it, then
-    // land on its top on the way down (one-way collision).
-    button2.set_y(380);
+    // The detached row-9 platform stays one-way. Start below its bottom,
+    // pass through from below, then land on top.
+    button2.set_x(900);
+    button2.set_y(322);
     button2.set_word(0xC006, 0xFC80);
     button2.set_byte(0xC008, 0);
+    button2.set_byte(0xC009, 16);
+    button2.set_byte(0xC00A, 1);
+    button2.press(Key_1);
     int min_y = 1000;
     bool passed_upward = false;
     for (int i = 0; i < 150; ++i) {
+        if (i == 16) button2.release(Key_1);
         button2.frames(1);
         if (button2.y() < min_y) min_y = button2.y();
-        passed_upward |= button2.y() < 368 && !button2.grounded();
+        passed_upward |= button2.y() < 272 && !button2.grounded();
     }
-    assert(passed_upward && min_y < 368);
-    assert(button2.y() == 368 && button2.grounded());
+    assert(passed_upward && min_y < 272);
+    assert(button2.y() == 272 && button2.grounded());
+    // This sloped floor is part of the ground, despite empty space below.
+    // Its underside at y=384 must stop Sonic when jumping from below.
+    button2.set_x(450);
+    button2.set_y(386);
+    button2.set_word(0xC004, 0);
+    button2.set_word(0xC006, 0xFC80);
+    button2.set_byte(0xC008, 0);
+    button2.frames(4);
+    assert(button2.y() >= 384 && static_cast<short>(button2.word(0xC006)) >= 0);
+    // A flat floor connected to terrain also has a solid underside, even
+    // when the metatile directly below it is empty.
+    button2.set_x(4132);
+    button2.set_y(386);
+    button2.set_word(0xC004, 0);
+    button2.set_word(0xC006, 0xFC80);
+    button2.set_byte(0xC008, 0);
+    button2.frames(4);
+    assert(button2.y() >= 384 && static_cast<short>(button2.word(0xC006)) >= 0);
     // The centre can be off a platform while a foot still overlaps it.
     // At row 9 the platform ends at x=992; x=981 has a foot over it.
     button2.set_x(981);

@@ -98,9 +98,10 @@ The downhill friction exemption applies only to TEST and is a prototype
 approximation, not a port of the SMS slope acceleration system. TEST uses a
 simple centre-point height lookup with 8-pixel steps. GHZ1 uses the original
 floor profiles with centre and inset foot sensors to bridge missed contacts
-at platform edges. Original solid-block profile 22 also blocks both sides and
-the underside; other floor profiles remain one-way. Wall and ceiling probes
-are approximate, and there are no moving platforms or original level objects.
+at platform edges. Full-solid blocks stop motion from either side, and floor
+tiles connected to solid terrain also block upward motion. Detached platforms
+remain one-way. Wall and ceiling probes are approximate, and there are no
+moving platforms or original level objects.
 There is no complete SMS slope and rolling physics or sound.
 In both levels the camera is offset 16 pixels to the right of its original
 prototype position, giving more view ahead. The camera follows horizontally
@@ -175,10 +176,12 @@ The GHZ1 menu option starts a second test level using the original
 8192×512 collision layout and original spawn position. A cyan background and
 green 8×8 silhouettes show the terrain. The graphics are generated from the
 collision profiles, not the original level art, so non-colliding scenery is
-not shown and slopes are visually approximated. The SMS full-solid profile blocks walls and ceilings, while the remaining
-floor profiles act as semisolids: Sonic can pass through them from below and
-land on top. These are simplified collision probes, not a complete SMS
-collision port; original moving platform objects are not yet implemented.
+not shown and slopes are visually approximated. Full-solid blocks stop Sonic
+at their sides and undersides. Floor tiles connected to solid blocks also
+have solid undersides; detached platforms remain semisolid, so Sonic can jump
+through them from below. Connectedness is a prototype approximation, not
+original SMS material data, and other side collision is still incomplete.
+Original moving platform objects are not yet implemented.
 Falling below the map respawns Sonic. No enemies or other objects are present.
 
 The prototype packs the collision-profile IDs into row-indexed runs, with the

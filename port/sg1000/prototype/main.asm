@@ -728,6 +728,10 @@ ghz_probe:
 ; Input D=metatile row 0..15, E=metatile column 0..255.
 ; Return A=original collision profile ID, clobber BC/DE/HL.
 ghz_collision_type:
+  call ghz_collision_raw
+  and $3F
+  ret
+ghz_collision_raw:
   ld a,d
   cp 16
   jr c,ghz_row_valid

@@ -1,6 +1,6 @@
 ; Provisional GHZ1 second test level. Terrain uses SMS floor profiles, sampled
-; to 8x8 for the display. Solid profile 22 blocks walls and ceilings;
-; other floor profiles remain one-way. Collision is still approximate.
+; to 8x8 for the display. Connected terrain has solid undersides; detached
+; platforms remain one-way. Collision is still approximate.
 ghz_init:
   xor a
   ld (xpos),a
@@ -47,8 +47,8 @@ ghz_right_edge:
   ld (xvel),hl
   ret
 
-; Only original profile 22 has left/right/ceiling surfaces in GHZ1. All
-; other floor profiles remain one-way, including the raised start platform.
+; Original profile 22 has full-width left/right sides. Sloped and flat
+; connected terrain has a solid underside, while detached platforms are one-way.
 ; Probe one pixel beyond the leading edge at two heights.
 ghz_wall_x:
   ld hl,(xvel)
@@ -113,6 +113,10 @@ ghz_wall_store:
 ; Read a metatile collision type from pixel coordinates in probe_x/probe_y.
 ; Returns zero outside the 512-pixel-high layout.
 ghz_collision_at:
+  call ghz_collision_at_raw
+  and $3F
+  ret
+ghz_collision_at_raw:
   ld hl,(ghz_probe_y)
   ld a,h
   cp 2
@@ -143,10 +147,10 @@ ghz_probe_y_valid:
   srl h
   rr l
   ld e,l
-  jp ghz_collision_type
+  jp ghz_collision_raw
 
-; A solid block also stops upward motion at its bottom. Semisolid profiles
-; have no ceiling: Sonic can continue through them from below.
+; Solid terrain stops upward motion at its bottom. Detached semisolid
+; platforms have no ceiling: Sonic can continue through them from below.
 ghz_ceiling:
   ld a,(ypos+1)
   ld l,a
@@ -172,16 +176,16 @@ ghz_ceiling:
   ld a,(xpage)
   ld h,a
   ld (ghz_probe_x),hl
-  call ghz_collision_at
-  cp 22
-  jr z,ghz_ceiling_block
+  call ghz_ceiling_at
+  or a
+  jr nz,ghz_ceiling_block
   ld hl,(ghz_probe_x)
   ld de,23
   add hl,de
   ld (ghz_probe_x),hl
-  call ghz_collision_at
-  cp 22
-  ret nz
+  call ghz_ceiling_at
+  or a
+  ret z
 ghz_ceiling_block:
   ld hl,(ghz_probe_y)
   ld a,l
@@ -198,6 +202,35 @@ ghz_ceiling_block:
   ld (yvel),a
   ld (yvel+1),a
   ld (jump_timer),a
+  ret
+
+; Test whether a solid terrain metatile actually occupies its bottom at this
+; x. Some slopes extend below their cell; their empty portion is not a ceiling.
+ghz_ceiling_at:
+  call ghz_collision_at_raw
+  bit 7,a
+  jr nz,ghz_ceiling_solid
+  xor a
+  ret
+ghz_ceiling_solid:
+  and $3F
+  ld b,a
+  ld a,(ghz_probe_x)
+  and 31
+  ld c,a
+  ld a,b
+  call ghz_floor_offset
+  cp $80
+  jr z,ghz_ceiling_empty
+  bit 7,a
+  jr nz,ghz_ceiling_occupied
+  cp 32
+  jr nc,ghz_ceiling_empty
+ghz_ceiling_occupied:
+  ld a,1
+  ret
+ghz_ceiling_empty:
+  xor a
   ret
 
 ghz_save_old_feet:

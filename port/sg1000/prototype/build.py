@@ -13,6 +13,7 @@ import layered_sonic
 import menu_font
 import prepare_ghz_layout
 from itertools import groupby
+from collections import deque
 
 # One floor height per 8-pixel column, on a 768x384 pixel test course.
 HEIGHTS = ([208] * 12 + list(range(200, 136, -8)) + [144] * 10
@@ -24,13 +25,37 @@ WORLD_HEIGHT = 48
 
 
 
+def ghz_solid_cells(layout, flags):
+    """Attach floor tiles connected to full-solid terrain; leave islands one-way.
+
+    Original SMS profiles encode direction, not a separate material bit. For
+    this test level, connected terrain is solid while detached platforms stay
+    semisolid. Connectivity is four-way to avoid bridging diagonal gaps.
+    """
+    kinds = [flags[tile] & 0x3f for tile in layout]
+    solid = {i for i, kind in enumerate(kinds) if kind == 22}
+    queue = deque(solid)
+    while queue:
+        i = queue.popleft()
+        x, y = i % 256, i // 256
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if 0 <= nx < 256 and 0 <= ny < 16:
+                j = ny * 256 + nx
+                if kinds[j] and j not in solid:
+                    solid.add(j)
+                    queue.append(j)
+    return solid
+
+
 def ghz_runtime_data(rom):
     """RLE each row of collision types for random access on the Z80."""
     info, layout, flags, floor, _ = prepare_ghz_layout.extract(rom)
     assert (info['width_metatiles'], info['height_metatiles']) == (256, 16)
     rows = []
+    solid = ghz_solid_cells(layout, flags)
     for y in range(16):
-        row = [flags[tile] & 0x3f for tile in layout[y * 256:(y + 1) * 256]]
+        row = [(flags[tile] & 0x3f) | (0x80 if y * 256 + x in solid else 0)
+               for x, tile in enumerate(layout[y * 256:(y + 1) * 256])]
         encoded = bytearray()
         for kind, group in groupby(row):
             count = sum(1 for _ in group)
