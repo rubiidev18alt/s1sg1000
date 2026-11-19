@@ -76,8 +76,8 @@ def ghz_runtime_data(rom):
 def ghz_terrain_patterns(art):
     """Reduce original SMS grass/soil tiles to two TMS Graphics I colours.
 
-    Tile 01 contains GHZ grass; tile 10 contains the checker/soil pattern.
-    A tile gets one fixed colour pair, so this is intentionally lossy.
+    Tile 01 contains GHZ grass; tiles 02/03 are the two solid colours in
+    the original checkerboard. A tile gets one fixed colour pair.
     """
     raw = menu_font.decode_hy(art)
     if len(raw) < 0x11 * 32:
@@ -92,7 +92,11 @@ def ghz_terrain_patterns(art):
                 row |= (colour in bright) << (7 - x)
             result.append(row)
         return bytes(result)
-    return convert(0x01, {5, 6}) + convert(0x10, {1})
+    grass = convert(0x01, {5, 6})
+    # The SMS highlight and shadow use extra colours. Keep a clean light-green
+    # lip and the original grass texture below it in the two-colour version.
+    grass = bytes([0xff, 0xff]) + grass[2:]
+    return grass + convert(0x02, {3}) + convert(0x03, {3})
 
 
 def ghz_visual_rows(rom):

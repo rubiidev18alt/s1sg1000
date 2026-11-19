@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
     assert(ghz_state.noise_white && ghz_state.noise_rate == 1);
     int noise_period = ghz_state.channels[3].period;
     ghz_music.press(Key_1);
-    ghz_music.frames(1);
+    ghz_music.frames(3);
     ghz_state = ghz_music.core.GetAudio()->GetPSG()->GetState();
     assert(ghz_state.channels[0].volume_reg < 15);
     assert(ghz_state.channels[2].volume_reg < 15); // effects alongside music
@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
     assert(vram2[0x2000] == 0x37); // green foreground, cyan background
     assert(vram2[0x2008] == 0x32 && vram2[0x2009] == 0xA6); // grass and soil
     assert(vram2[0x2004] == 0xA7); // yellow rings and matching HUD icon
-    const u8 grass_pattern[] = {0x11, 0x33, 0xAA, 0xAA, 0xAA, 0x44, 0x44, 0x44};
+    const u8 grass_pattern[] = {0xFF, 0xFF, 0xAA, 0xAA, 0xAA, 0x44, 0x44, 0x44};
     for (int i = 0; i < 8; ++i) assert(vram2[0x200 + i] == grass_pattern[i]);
     int grass_tiles = 0;
     for (int i = 0; i < 768; ++i) grass_tiles += (vram2[0x1800 + i] == 64);
@@ -158,8 +158,17 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 32; ++i) {
         if (i < 2 || (i > 3 && i != 5 && i != 6))
             assert(vram2[0x1800 + i] == 0);      // sky outside HUD
-        assert(vram2[0x1800 + 15 * 32 + i] == 72); // textured ground
+        assert(vram2[0x1800 + 15 * 32 + i] == 72 + ((21 + i + 37 + 15) & 1)); // world-aligned checker
     }
+    // Scrolling by one tile must not make the checkerboard swim.
+    u8 fixed_world_tile = vram2[0x1800 + 15 * 32 + 10];
+    button2.set_x(264);
+    button2.frames(4);
+    assert(button2.camera_x() == 22);
+    assert(vram2[0x1800 + 15 * 32 + 9] == fixed_world_tile);
+    button2.set_x(256);
+    button2.frames(4);
+    assert(button2.camera_x() == 21);
     // GHZ debug toggles once, flies through terrain, clamps to GHZ bounds,
     // and resumes normal gravity on exit. The viewer uses both buttons.
     button2.press(Key_2);

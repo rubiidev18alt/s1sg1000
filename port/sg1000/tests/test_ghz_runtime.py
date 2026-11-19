@@ -74,9 +74,10 @@ class RuntimeLayoutTest(unittest.TestCase):
         if not art.exists():
             self.skipTest('unpacked SMS art absent')
         patterns = mod.ghz_terrain_patterns(art.read_bytes())
-        self.assertEqual(len(patterns), 16)
-        self.assertEqual(patterns[:8], bytes([0x11, 0x33, 0xaa, 0xaa, 0xaa, 0x44, 0x44, 0x44]))
-        self.assertEqual(patterns[8:], bytes([0x77, 0x77, 0x22, 0x22, 0, 0, 0, 0]))
+        self.assertEqual(len(patterns), 24)
+        self.assertEqual(patterns[:8], bytes([0xff, 0xff, 0xaa, 0xaa, 0xaa, 0x44, 0x44, 0x44]))
+        self.assertEqual(patterns[8:16], bytes(8))
+        self.assertEqual(patterns[16:24], bytes([0xff] * 8))
         with self.assertRaises(ValueError):
             mod.ghz_terrain_patterns(b'')
 

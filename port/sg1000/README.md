@@ -184,11 +184,12 @@ meaning no surface. The manifest records the original starting point and
 camera limits. The ROM is checked by SHA-256; generated data remains ignored.
 The GHZ1 menu option starts a second test level using the original
 8192×512 collision layout and original spawn position. A cyan background,
-two-green grass and brown soil/wall patterns show the terrain. The two 8×8
-patterns are reduced from the original SMS GHZ art, but placement follows the
-collision silhouette rather than the original graphics tilemap. This is an
-initial terrain-only approximation: non-colliding scenery is not shown, and
-slopes, grass edges and the checker texture are not yet faithful to the SMS. Full-solid blocks stop Sonic
+two-green grass and checkerboard soil/walls show the terrain. The grass is
+adapted from the original SMS art with a cleaner highlighted edge; the soil
+uses the original alternating checker-tile layout, anchored in world space.
+The SG-1000 palette has no exact match for the original brown and orange.
+Placement still follows the collision silhouette rather than the original
+graphics tilemap, so scenery is not shown and slopes remain approximate. Full-solid blocks stop Sonic
 at their sides and undersides. Floor tiles connected to solid blocks also
 have solid undersides; detached platforms remain semisolid, so Sonic can jump
 through them from below. Connectedness is a prototype approximation, not

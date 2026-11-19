@@ -35,7 +35,7 @@ ghz_init:
   ld hl,$4240
   call vdp_addr
   ld hl,ghz_terrain_patterns+8
-  ld bc,8
+  ld bc,16
   call vdp_copy
   ld hl,$6008
   call vdp_addr
@@ -564,6 +564,22 @@ ghz_found_run:
 ghz_output_run:
   ld a,(ghz_draw_value)
   ld d,a
+  cp 72
+  jr nz,ghz_output_type_ready
+  ; The SMS alternates its two soil tiles in world space, not screen space.
+  ; E is remaining screen columns; 32-E has the same low bit as E.
+  ld a,(camera_x)
+  xor e
+  ld d,a
+  ld a,(camera_y)
+  xor d
+  ld d,a
+  ld a,(ghz_screen_row)
+  xor d
+  and 1
+  add a,72
+  ld d,a
+ghz_output_type_ready:
   ld a,b
   or a
   jr nz,ghz_output_last_run
@@ -576,16 +592,40 @@ ghz_output_run:
   ld b,c
 ghz_output_partial:
   ld a,d
+  cp 72
+  jr nc,ghz_partial_checker
+-:
+  ld a,d
   out ($BE),a
-  djnz ghz_output_partial
+  djnz -
+  jr ghz_partial_done
+ghz_partial_checker:
+  ld a,d
+  out ($BE),a
+  xor 1
+  ld d,a
+  djnz ghz_partial_checker
+ghz_partial_done:
   call ghz_read_run
   jr ghz_output_run
 ghz_output_last_run:
   ld b,e
 ghz_output_final:
   ld a,d
+  cp 72
+  jr nc,ghz_final_checker
+-:
+  ld a,d
   out ($BE),a
-  djnz ghz_output_final
+  djnz -
+  jr ghz_row_done
+ghz_final_checker:
+  ld a,d
+  out ($BE),a
+  xor 1
+  ld d,a
+  djnz ghz_final_checker
+ghz_row_done:
   ld a,(ghz_screen_row)
   inc a
   ld (ghz_screen_row),a
