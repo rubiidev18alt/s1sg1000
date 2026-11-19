@@ -35,6 +35,9 @@ idle_phase db
 sprite_draw_y db
 idle_timer_hi db
 menu_selection db
+anim_mode db
+anim_phase db
+anim_subframe db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -67,6 +70,9 @@ init:
   ld (idle_timer_hi),a
   ld (idle_phase),a
   ld (menu_selection),a
+  ld (anim_mode),a
+  ld (anim_phase),a
+  ld (anim_subframe),a
   ld a,$FF
   ld (camera_x),a
   ld (camera_y),a
@@ -765,7 +771,7 @@ animate:
   or a
   jr z,anim_not_rolling
   call reset_idle
-  jp anim_spin
+  jp anim_roll
 anim_not_rolling:
   ld hl,(xvel)
   ld a,h
@@ -779,19 +785,25 @@ anim_not_rolling:
   bit 0,a
   jr z,check_look_down
   call reset_idle
+  ld (anim_mode),a
   ld a,$14
   jp anim_save
 check_look_down:
   bit 1,a
   jr z,anim_idle
   call reset_idle
+  ld (anim_mode),a
   ld a,$07
   jp anim_save
 anim_standing:
+  xor a
+  ld (anim_mode),a
   call reset_idle
   ld a,$06
   jp anim_save
 anim_idle:
+  xor a
+  ld (anim_mode),a
   ; SMS bored timer (01:4A55/4A6A) begins after $0168 idle frames.
   ld a,(idle_timer_hi)
   or a
@@ -846,7 +858,7 @@ idle_frame_16:
 
 anim_air:
   call reset_idle
-  jr anim_spin
+  jp anim_air_spin
 anim_moving:
   call reset_idle
   ld hl,(xvel)
@@ -862,10 +874,41 @@ check_brake_left:
   jr nz,anim_speed
   jr anim_brake
 anim_brake:
+  ; At speeds below 1 px/frame the SMS turns instead of skidding.
+  bit 7,h
+  jr z,brake_was_positive
+  ld a,h
+  cp $FF
+  jr nz,brake_face_left
+  ld a,l
+  or a
+  jp nz,anim_speed
+brake_face_left:
+  ld a,1
+  ld (facing),a
+  jr brake_animation
+brake_was_positive:
+  ld a,h
+  or a
+  jp z,anim_speed
+  xor a
+  ld (facing),a
+brake_animation:
+  ; The SMS braking table alternates 13 and 25 at eight ticks per frame.
+  ld a,5
+  call anim_select_mode
+  ld a,(anim_phase)
+  inc a
+  and $0F
+  ld (anim_phase),a
+  bit 3,a
   ld a,$13
+  jp z,anim_save
+  ld a,$25
   jp anim_save
 anim_speed:
-  ; 0D-10 are the SMS fast-running cycle. Select by speed magnitude.
+  ; Normal speed cap selects the SMS run cycle 0D-10; below it the walk
+  ; cycle uses a velocity-dependent 48-step phase (01:4D8D-4DC7).
   bit 7,h
   jr z,anim_abs_ready
   xor a
@@ -876,33 +919,110 @@ anim_speed:
   ld h,a
 anim_abs_ready:
   ld a,h
-  cp 2
+  cp 3
   jr c,anim_walk
-  ld a,(frame_tick)
+  ld a,3
+  call anim_select_mode
+  ld a,(anim_phase)
+  inc a
+  and $0F
+  ld (anim_phase),a
   rrca
   rrca
   and 3
   add a,$0D
   jp anim_save
 anim_walk:
-  ld a,(frame_tick)
-  rrca
-  rrca
-  rrca
-  and 7
-  cp 6
-  jr c,anim_save
-  sub 6
-  jr anim_save
-anim_spin:
-  ld a,(frame_tick)
-  rrca
-  rrca
-  and 3
+  ld a,1
+  call anim_select_mode
+  ld d,1
+  ld c,48
+  call anim_advance_speed
+  srl a
+  srl a
+  srl a
+  jp anim_save
+anim_roll:
+  ld a,2
+  call anim_select_mode
+  ld hl,(xvel)
+  bit 7,h
+  jr z,roll_anim_abs_ready
+  xor a
+  sub l
+  ld l,a
+  ld a,0
+  sbc a,h
+  ld h,a
+roll_anim_abs_ready:
+  ld d,6
+  ld c,80
+  call anim_advance_speed
+  srl a
+  srl a
+  srl a
+  srl a
+  or a
+  jr nz,roll_anim_nonzero
+  ld a,$0C
+  jp anim_save
+roll_anim_nonzero:
+  add a,$07
+  jp anim_save
+anim_air_spin:
+  ; Airborne jump animation uses all five frames 08-0C, four ticks each.
+  ld a,4
+  call anim_select_mode
+  ld a,(anim_phase)
+  inc a
+  cp 20
+  jr c,air_phase_ready
+  xor a
+air_phase_ready:
+  ld (anim_phase),a
+  srl a
+  srl a
   add a,$08
 anim_save:
   ld (frame_id),a
   ret
+
+; Reset the frame phase when the motion animation changes.
+; Preserves HL, used for speed in the walking case.
+anim_select_mode:
+  ld b,a
+  ld a,(anim_mode)
+  cp b
+  ret z
+  ld a,b
+  ld (anim_mode),a
+  xor a
+  ld (anim_phase),a
+  ld (anim_subframe),a
+  ret
+
+; HL=absolute velocity, D=base step, C=table length. Return previous phase.
+; The SMS adds (absolute velocity / 2) in 8.8 fixed point plus the base step.
+anim_advance_speed:
+  srl h
+  rr l
+  ld a,(anim_subframe)
+  add a,l
+  ld (anim_subframe),a
+  ld a,h
+  adc a,d
+  ld e,a
+  ld a,(anim_phase)
+  push af
+  add a,e
+  cp c
+  jr c,anim_phase_in_range
+  sub c
+anim_phase_in_range:
+  ld (anim_phase),a
+  pop af
+  ret
+
 reset_idle:
   xor a
   ld (idle_timer),a

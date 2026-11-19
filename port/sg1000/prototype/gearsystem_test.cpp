@@ -136,11 +136,20 @@ int main(int argc, char** argv) {
     assert(held_apex < short_apex && held_jump.grounded());
     Simulation brake(argv[1]);
     brake.press(Key_Right);
-    brake.frames(30);
+    brake.frames(50);
     assert(brake.vx() > 0);
     brake.release(Key_Right);
     brake.press(Key_Left);
-    brake.frames(30);
+    brake.frames(2);
+    assert(brake.vx() > 0 && brake.byte(0xC00B) == 0);
+    assert(brake.byte(0xC00D) == 0x13 || brake.byte(0xC00D) == 0x25);
+    bool saw_second_skid_frame = false;
+    for (int i = 0; i < 10; ++i) {
+        brake.frames(1);
+        saw_second_skid_frame |= brake.byte(0xC00D) == 0x25;
+    }
+    assert(saw_second_skid_frame);
+    brake.frames(20);
     assert(brake.vx() < 0);
     Simulation poses(argv[1]);
     poses.press(Key_Up);
@@ -149,8 +158,29 @@ int main(int argc, char** argv) {
     poses.press(Key_Right);
     poses.frames(5);
     assert(poses.vx() > 0 && poses.byte(0xC00D) != 0x14);
-    poses.frames(40);
+    poses.frames(50);
     assert(poses.byte(0xC00D) >= 0x0D && poses.byte(0xC00D) <= 0x10);
+    // At fixed speeds, the original walking phase increases faster when
+    // Sonic moves faster. Normal coasting subtracts 8 before animation.
+    Simulation slow_walk(argv[1]);
+    Simulation fast_walk(argv[1]);
+    for (int i = 0; i < 12; ++i) {
+        slow_walk.set_word(0xC004, 0x0108);
+        fast_walk.set_word(0xC004, 0x0208);
+        slow_walk.frames(1);
+        fast_walk.frames(1);
+    }
+    assert(slow_walk.byte(0xC01B) == 1 && fast_walk.byte(0xC01B) == 1);
+    assert(slow_walk.byte(0xC01C) == 18 && fast_walk.byte(0xC01C) == 24);
+    Simulation jump_animation(argv[1]);
+    jump_animation.press(Key_1);
+    bool saw_jump[5] = {};
+    for (int i = 0; i < 25; ++i) {
+        jump_animation.frames(1);
+        int frame = jump_animation.byte(0xC00D);
+        if (frame >= 8 && frame <= 12) saw_jump[frame - 8] = true;
+    }
+    for (bool seen : saw_jump) assert(seen);
     Simulation idle(argv[1]);
     idle.frames(100);
     assert(idle.byte(0xC00D) == 0x06);
@@ -190,7 +220,7 @@ int main(int argc, char** argv) {
     roll.release(Key_Right);
     roll.frames(2);
     assert(roll.grounded() && roll.byte(0xC015) == 1);
-    assert(roll.byte(0xC00D) >= 8 && roll.byte(0xC00D) <= 11);
+    assert(roll.byte(0xC00D) >= 8 && roll.byte(0xC00D) <= 12);
     int ball_frame = roll.byte(0xC00D);
     assert(roll.sprite_y() == roll.expected_sprite_y((ball_frame == 8 || ball_frame == 10) ? 9 : 8));
     int roll_speed = roll.vx();
