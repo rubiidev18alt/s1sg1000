@@ -113,6 +113,8 @@ In both levels the camera is offset 16 pixels to the right of its original
 prototype position, giving more view ahead. The camera follows horizontally
 and vertically in 8-pixel increments; the
 TMS9918 does not support smooth hardware scrolling, and redraws may tear.
+Unchanged Sonic patterns and HUD tiles are cached to reduce VRAM traffic; PSG
+updates run after graphics writes to avoid delaying them with audio wait states.
 Sprite colours and animation timing are approximate. There are no enemies or complete levels.
 
 Tests include the Python converter suite and an optional actual Gearsystem

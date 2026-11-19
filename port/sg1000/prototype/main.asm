@@ -72,6 +72,8 @@ sfx_ptr dw
 sfx_timer db
 music_ch0 dsb 4
 music_ch1 dsb 4
+sprite_cached_index db
+ring_hud_cached_count db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -110,6 +112,8 @@ init:
   ld (anim_subframe),a
   ld (debug_mode),a
   ld a,$FF
+  ld (sprite_cached_index),a
+  ld (ring_hud_cached_count),a
   ld (camera_x),a
   ld (camera_y),a
   ld hl,$1800             ; 24 pixels
@@ -225,9 +229,10 @@ preview_frame:
 frame_draw:
   call update_camera
   call rings_tick
+  call draw_sonic
+  ; Keep PSG's SG-1000 wait states out of the VRAM update path.
   call music_tick
   call sfx_tick
-  call draw_sonic
   ld a,(controls)
   ld (previous_controls),a
   jr main_loop
@@ -1377,6 +1382,7 @@ draw_sonic:
   add a,42
 frame_index_ready:
   add a,a
+  ld c,a
   ld e,a
   ld d,0
   ld hl,frame_ptrs
@@ -1384,12 +1390,22 @@ frame_index_ready:
   ld e,(hl)
   inc hl
   ld d,(hl)
+  ld a,(sprite_cached_index)
+  cp c
+  jr z,frame_patterns_cached
+  ld a,c
+  ld (sprite_cached_index),a
   push de
   ld hl,$7800
   call vdp_addr
   pop hl
   ld bc,256
   call vdp_copy
+  jr frame_patterns_ready
+frame_patterns_cached:
+  ex de,hl
+  inc h                       ; colours follow the 256 pattern bytes
+frame_patterns_ready:
   push hl
   ld hl,$5B00
   call vdp_addr

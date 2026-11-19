@@ -416,6 +416,22 @@ int main(int argc, char** argv) {
     assert(sound_brake.core.GetAudio()->GetPSG()->GetState().channels[2].volume_reg == 0);
     sound_brake.frames(25);
     assert(sound_brake.core.GetAudio()->GetPSG()->GetState().channels[2].volume_reg == 15);
+    // Stable sprites and HUD no longer upload identical tiles every frame.
+    // A new frame or counter value must still invalidate its own cache.
+    Simulation cache(argv[1]);
+    auto cache_vram = cache.core.GetVideo()->GetVRAM();
+    const u8 old_pattern = cache_vram[0x3800];
+    cache_vram[0x3800] = old_pattern ^ 0xff;
+    cache_vram[0x1802] = 0x7e;
+    cache.frames(2);
+    assert(cache_vram[0x3800] == (old_pattern ^ 0xff));
+    assert(cache_vram[0x1802] == 0x7e);
+    cache.set_byte(0xC03E, 1);
+    cache.frames(1);
+    assert(cache_vram[0x1802] == 60 && cache_vram[0x1806] == 42);
+    cache.press(Key_1);
+    cache.frames(3);
+    assert(cache_vram[0x3800] != (old_pattern ^ 0xff));
     Simulation s(argv[1]);
     assert(s.x() == 24 && s.y() == 176 && s.grounded());
     int start_camera_y = s.camera_y();

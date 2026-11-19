@@ -1,6 +1,8 @@
 ; TMS Graphics I background-ring experiment. Original GHZ ring positions
 ; are stored as x/y pixel words sorted by x; collect once per level load.
 rings_init:
+  ld a,$FF
+  ld (ring_hud_cached_count),a
   xor a
   ld (ring_count),a
   ld (ring_redraw),a
@@ -233,8 +235,19 @@ rings_next:
   dec b
   jp nz,rings_loop
 rings_finished:
+  ld a,(ring_redraw)
+  or a
+  jr nz,rings_update_hud
+  ld a,(ring_hud_cached_count)
+  ld b,a
+  ld a,(ring_count)
+  cp b
+  ret z
+rings_update_hud:
   xor a
   ld (ring_redraw),a
+  ld a,(ring_count)
+  ld (ring_hud_cached_count),a
   jp ring_draw_hud
 
 ; Return HL -> collected bitset byte, C -> bit for current index.
