@@ -27,18 +27,19 @@ ghz_init:
   ret
 
 ghz_x_limit:
-  ; left edge x=0, right edge x=8168 (8192 - 24).
+  ; SMS GHZ1 camera right limit is $18C0 = 6336 pixels.
+  ; SMS player clamp is camera limit + $F8 - $18 - 1 = 6559.
   ld a,(xpage)
-  cp 31
+  cp 25
   ret c
   jr nz,ghz_right_edge
   ld a,(xpos+1)
-  cp 233
+  cp 159
   ret c
 ghz_right_edge:
-  ld a,31
+  ld a,25
   ld (xpage),a
-  ld hl,$E800
+  ld hl,$9F00
   ld (xpos),hl
   ld hl,0
   ld (xvel),hl
@@ -207,7 +208,8 @@ ghz_respawn:
   jp ghz_init
 
 ; Tile-aligned camera with a 16-bit horizontal coordinate, necessary for
-; the original 1024-tile-wide level. Both axes are clamped to its full size.
+; the original 1024-tile-wide layout. The right camera limit uses the SMS
+; level header ($18C0 pixels, 792 tiles), rather than the unused map tail.
 ghz_camera:
   ld a,(xpos+1)
   ld l,a
@@ -225,12 +227,12 @@ ghz_cam_x_positive:
   rr l
   srl h
   rr l
-  ld de,992
+  ld de,792
   or a
   sbc hl,de
   add hl,de
   jr c,ghz_cam_x_ready
-  ld hl,992
+  ld hl,792
 ghz_cam_x_ready:
   push hl
   ld a,(ypos+1)
@@ -278,104 +280,86 @@ ghz_camera_changed:
   ld (camera_y),a
   jp ghz_draw_map
 
-; Decode nine metatiles per screen row, then render 32 coarse 8x8 cells.
+; Each source row is RLE-compressed as (16-bit count, tile value) runs.
+; Skip camera_x cells and stream just 32 cells per row to the name table.
+; This retains exactly the previous 8-pixel silhouette without repeated
+; metatile lookups or per-cell multiplications.
 ghz_draw_map:
   ld hl,$5800
   call vdp_addr
   xor a
   ld (ghz_screen_row),a
-  dec a
-  ld (ghz_last_row),a
 ghz_draw_row:
   ld a,(camera_y)
   ld b,a
   ld a,(ghz_screen_row)
   add a,b
-  ld (ghz_render_y),a
-  srl a
-  srl a
-  ld (ghz_row),a
-  ld b,a
-  ld a,(ghz_last_row)
-  cp b
-  jp z,ghz_row_decoded
-  ld a,b
-  ld (ghz_last_row),a
-  ld a,(camera_x)
-  ld l,a
-  ld a,(camera_x_hi)
-  ld h,a
-  srl h
-  rr l
-  srl h
-  rr l
-  ld (ghz_render_x),hl
-  xor a
-  ld (ghz_screen_col),a
-ghz_decode_row:
-  ld a,(ghz_row)
-  ld d,a
-  ld hl,(ghz_render_x)
-  ld e,l
-  call ghz_collision_type
-  ld b,a
-  ld a,(ghz_screen_col)
-  ld e,a
-  ld d,0
-  ld hl,ghz_buffer
-  add hl,de
-  ld (hl),b
-  ld hl,(ghz_render_x)
-  inc hl
-  ld (ghz_render_x),hl
-  ld a,(ghz_screen_col)
-  inc a
-  ld (ghz_screen_col),a
-  cp 9
-  jr c,ghz_decode_row
-ghz_row_decoded:
-  xor a
-  ld (ghz_screen_col),a
-ghz_draw_col:
-  ld a,(camera_x)
-  and 3
-  ld b,a
-  ld a,(ghz_screen_col)
-  add a,b
-  ld c,a
-  srl a
-  srl a
-  ld e,a
-  ld d,0
-  ld hl,ghz_buffer
-  add hl,de
-  ld a,(hl)
   ld l,a
   ld h,0
   add hl,hl
-  add hl,hl
-  add hl,hl
-  add hl,hl               ; profile * 16
-  ld a,(ghz_render_y)
-  and 3
-  add a,a
-  add a,a
-  ld b,a
-  ld a,c
-  and 3
-  add a,b
+  ld de,ghz_visual_rows
+  add hl,de
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ld hl,ghz_visual_data
+  add hl,de
+  ld a,(camera_x)
   ld e,a
-  ld d,0
-  add hl,de
-  ld de,ghz_tiles
-  add hl,de
-  ld a,(hl)
+  ld a,(camera_x_hi)
+  ld d,a
+ghz_skip_run:
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  push hl                ; pointer to run value
+  ex de,hl               ; skip count
+  or a
+  sbc hl,bc
+  jr c,ghz_found_run
+  ex de,hl               ; remaining skip count
+  pop hl
+  inc hl                 ; next run
+  jr ghz_skip_run
+ghz_found_run:
+  ; BC = length minus skipped tiles (negate the negative subtraction).
+  xor a
+  sub l
+  ld c,a
+  ld a,0
+  sbc a,h
+  ld b,a
+  pop hl                 ; run value
+  ld e,32                ; screen cells left
+ghz_output_run:
+  ld d,(hl)
+  inc hl
+  ld a,b
+  or a
+  jr nz,ghz_output_last_run
+  ld a,c
+  cp e
+  jr nc,ghz_output_last_run
+  ld a,e
+  sub c
+  ld e,a
+  ld b,c
+ghz_output_partial:
+  ld a,d
   out ($BE),a
-  ld a,(ghz_screen_col)
-  inc a
-  ld (ghz_screen_col),a
-  cp 32
-  jr c,ghz_draw_col
+  djnz ghz_output_partial
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  inc hl
+  jr ghz_output_run
+ghz_output_last_run:
+  ld b,e
+ghz_output_final:
+  ld a,d
+  out ($BE),a
+  djnz ghz_output_final
   ld a,(ghz_screen_row)
   inc a
   ld (ghz_screen_row),a

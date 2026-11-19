@@ -30,6 +30,28 @@ class RuntimeLayoutTest(unittest.TestCase):
             self.assertEqual(row, [flags[t] & 63 for t in layout[y*256:(y+1)*256]])
         self.assertLess(len(encoded) + len(profiles), 1400)
 
+    def test_visual_rows_match_original_silhouette(self):
+        rom = ROOT / 'Sonic The Hedgehog (USA, Europe, Brazil) (En).sms'
+        if not rom.exists():
+            self.skipTest('user-supplied ROM absent')
+        data = rom.read_bytes()
+        _, layout, flags, floor, _ = mod.prepare_ghz_layout.extract(data)
+        encoded = mod.ghz_visual_rows(data)
+        for y in range(64):
+            pos = 128 + int.from_bytes(encoded[2*y:2*y+2], 'little')
+            actual = []
+            while len(actual) < 1024:
+                count = int.from_bytes(encoded[pos:pos+2], 'little')
+                actual.extend([encoded[pos+2]] * count)
+                pos += 3
+            expected = []
+            for x in range(1024):
+                kind = flags[layout[(y//4)*256 + x//4]] & 63
+                value = floor[kind*32 + (x%4)*8 + 4]
+                height = value if value < 128 else value - 256
+                expected.append(int(value != 128 and (y%4)*8 + 4 >= height))
+            self.assertEqual(actual, expected)
+
 
 if __name__ == '__main__':
     unittest.main()

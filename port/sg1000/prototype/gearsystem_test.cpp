@@ -106,8 +106,12 @@ int main(int argc, char** argv) {
     }
     assert(passed_upward && min_y < 368);
     assert(button2.y() == 368 && button2.grounded());
+    int ghz_tick_before = button2.byte(0xC00C);
     button2.press(Key_Right);
     button2.frames(120);
+    int ghz_ticks = (button2.byte(0xC00C) - ghz_tick_before) & 255;
+    std::printf("GHZ updates in 120 video frames: %d\n", ghz_ticks);
+    assert(ghz_ticks >= 100);
     button2.release(Key_Right);
     button2.frames(10);
     assert(button2.x() > 270);
@@ -116,6 +120,18 @@ int main(int argc, char** argv) {
     button2.frames(20);
     assert(button2.x() >= 2990);
     assert(button2.byte(0xC01E) > 0); // high byte of tile camera x
+    // The header's right camera boundary is 6336; Sonic is clamped to
+    // 6559, just inside the corresponding screen edge.
+    button2.set_x(6550);
+    button2.set_y(160);
+    button2.set_word(0xC004, 0x0300);
+    button2.set_word(0xC006, 0);
+    button2.set_byte(0xC008, 0);
+    button2.press(Key_Right);
+    button2.frames(20);
+    button2.release(Key_Right);
+    assert(button2.x() == 6559 && button2.vx() == 0);
+    assert(button2.camera_x() + 256 * button2.byte(0xC01E) == 792);
     button2.set_y(511);
     button2.set_word(0xC006, 0x0100);
     button2.set_byte(0xC008, 0);

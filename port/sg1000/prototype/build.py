@@ -45,6 +45,30 @@ def ghz_runtime_data(rom):
     return bytes(offsets) + b''.join(rows), floor[:23 * 32]
 
 
+def ghz_visual_rows(rom):
+    """Pack the existing 8-pixel silhouette into random-access RLE rows."""
+    _, layout, flags, floor, _ = prepare_ghz_layout.extract(rom)
+    rows = []
+    for y in range(64):
+        cells = []
+        for x in range(1024):
+            kind = flags[layout[(y // 4) * 256 + x // 4]] & 63
+            value = floor[kind * 32 + (x % 4) * 8 + 4]
+            height = value if value < 128 else value - 256
+            cells.append(int(value != 128 and (y % 4) * 8 + 4 >= height))
+        packed = bytearray()
+        for value, group in groupby(cells):
+            packed.extend(sum(1 for _ in group).to_bytes(2, 'little'))
+            packed.append(value)
+        rows.append(bytes(packed))
+    offsets = bytearray()
+    cursor = 0
+    for row in rows:
+        offsets.extend(cursor.to_bytes(2, 'little'))
+        cursor += len(row)
+    return bytes(offsets) + b''.join(rows)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--wla-z80', default='wla-z80')
@@ -67,15 +91,7 @@ def main():
         ghz_map, ghz_floor = ghz_runtime_data(rom.read_bytes())
         (out / 'ghz_collision_rows.bin').write_bytes(ghz_map)
         (out / 'ghz_floor_profiles.bin').write_bytes(ghz_floor)
-        # Coarse monochrome silhouette, sampled at the centre of each 8x8 cell.
-        tiles = bytearray()
-        for kind in range(23):
-            for y in range(4):
-                for x in range(4):
-                    value = ghz_floor[kind * 32 + x * 8 + 4]
-                    height = value if value < 128 else value - 256
-                    tiles.append(int(value != 128 and y * 8 + 4 >= height))
-        (out / 'ghz_tiles.bin').write_bytes(tiles)
+        (out / 'ghz_visual_rows.bin').write_bytes(ghz_visual_rows(rom.read_bytes()))
         (out / 'menu_font.bin').write_bytes(menu_font.font_patterns(
             (data / 'world_map_1_ending.art0000').read_bytes()))
         prepare_sonic.prepare(data, out / 'sonic')

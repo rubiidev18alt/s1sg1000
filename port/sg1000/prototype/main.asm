@@ -1401,6 +1401,8 @@ ghz_collision_row_data:
 .INCBIN "build/sg1000/prototype/ghz_collision_rows.bin" SKIP 32
 ghz_floor_profiles:
 .INCBIN "build/sg1000/prototype/ghz_floor_profiles.bin"
-ghz_tiles:
-.INCBIN "build/sg1000/prototype/ghz_tiles.bin"
+ghz_visual_rows:
+.INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 0 READ 128
+ghz_visual_data:
+.INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 128
 
