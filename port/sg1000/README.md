@@ -67,7 +67,7 @@ no playable game or sound/physics code is produced by this step.
 ## Playable physics sandbox
 
 The separate prototype builds a 32 KiB SG-1000 ROM with a black background,
-white flat ground and a stepped hill. Move with left/right; button 1 jumps.
+a 768-pixel-wide white test course with multiple stepped hills. Move with left/right; button 1 jumps.
 Holding button 1 produces a higher jump. Reset the emulator to restart. Run it
 in Gearsystem's SG-1000 mode (the `.sg` extension should select it; force
 SG-1000 if needed). NTSC timing is the reference.
@@ -88,9 +88,10 @@ movement engine. Acceleration ($10), braking ($30), coasting ($08), maximum
 normal horizontal speed ($0300), jump velocity ($FC80), jump hold (16 frames),
 and gravity ($38) are based on the SMS disassembly. Floor collision is a
 simple centre-point height lookup with 8-pixel steps, not the original slopes,
-rolling, wall collision, inertia, level objects or camera. It has no sound.
-The sprite frames are heavily simplified to one colour per 8x8 sprite and
-animation timing is approximate. There are no enemies or complete levels.
+rolling physics, wall collision, inertia or level objects. It has no sound.
+The camera follows horizontally and vertically in 8-pixel increments; the
+TMS9918 does not support smooth hardware scrolling, and redraws may tear.
+Sprite colours and animation timing are approximate. There are no enemies or complete levels.
 
 Tests include the Python converter suite and an optional actual Gearsystem
 core smoke test (build the ROM first, with a Gearsystem source checkout and a
@@ -101,8 +102,8 @@ python3 -m unittest discover -s port/sg1000/tests
 GEARSYSTEM_DIR=/path/to/Gearsystem port/sg1000/prototype/test_gearsystem.sh
 ```
 
-The emulator test covers acceleration, reversal, edge limits, the hill, jump
-height, and landing; it does not establish cycle-accurate SMS physics.
+The emulator test covers acceleration, reversal, edge limits, both camera axes, hills, jump
+height, landing, and animation preview; it does not establish cycle-accurate SMS physics.
 
 ### Sprite and animation experiment
 

@@ -25,6 +25,10 @@ frame_id db
 controls db
 previous_controls db
 viewer_frame db
+xpage db
+ypage db
+camera_x db
+camera_y db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -50,9 +54,14 @@ init:
   ld (frame_tick),a
   ld (previous_controls),a
   ld (viewer_frame),a
+  ld (xpage),a
+  ld (ypage),a
+  ld a,$FF
+  ld (camera_x),a
+  ld (camera_y),a
   ld hl,$1800             ; 24 pixels
   ld (xpos),hl
-  ld hl,$8000             ; top y=128, ground y=160
+  ld hl,$B000             ; world top y=176, ground y=208
   ld (ypos),hl
   ld a,1
   ld (grounded),a
@@ -93,12 +102,7 @@ solid_tile:
   call vdp_addr
   ld a,$F1
   out ($BE),a
-  ; Name table: black sky and white stair-stepped course.
-  ld hl,$5800
-  call vdp_addr
-  ld hl,ground_map
-  ld bc,768
-  call vdp_copy
+  call update_camera
   call draw_sonic
 main_loop:
   ; Poll vertical blank; status read acknowledges it. No interrupts required.
@@ -118,6 +122,7 @@ wait_vblank:
 preview_frame:
   call animation_viewer
 frame_draw:
+  call update_camera
   call draw_sonic
   ld a,(controls)
   ld (previous_controls),a
@@ -218,31 +223,47 @@ cap_left:
   ld hl,$FD00
 save_vx:
   ld (xvel),hl
+  ; Integrate signed 8.8 velocity into a 16.8-bit world position.
+  ld a,h
+  bit 7,a
+  jr nz,x_integrate_negative
   ld de,(xpos)
   add hl,de
-  ; Detect 16-bit underflow/overflow using the velocity sign and carry.
-  push af
-  ld a,(xvel+1)
-  bit 7,a
-  jr z,check_positive_edge
-  pop af
-  jr nc,left_edge
+  ld (xpos),hl
+  ld a,(xpage)
+  adc a,0
+  ld (xpage),a
   jr check_right_limit
-check_positive_edge:
-  pop af
-  jr c,right_edge
+x_integrate_negative:
+  ld de,(xpos)
+  add hl,de
+  ld (xpos),hl
+  ld a,(xpage)
+  adc a,$FF
+  ld (xpage),a
+  cp $FF
+  jr z,left_edge
 check_right_limit:
-  ld a,h
+  ; Sprite's left edge is limited to world x=744 (768 - 24).
+  ld a,(xpage)
+  cp 2
+  jr c,x_done
+  jr nz,right_edge
+  ld a,(xpos+1)
   cp 233
   jr nc,right_edge
-  ld (xpos),hl
+x_done:
   ret
 left_edge:
+  xor a
+  ld (xpage),a
   ld hl,0
   ld (xpos),hl
   ld (xvel),hl
   ret
 right_edge:
+  ld a,2
+  ld (xpage),a
   ld hl,$E800
   ld (xpos),hl
   ld hl,0
@@ -299,25 +320,48 @@ hold_jump:
 store_yvel:
   ld (yvel),hl
 move_y:
-  ld hl,(ypos)
-  ld de,(yvel)
+  ld hl,(yvel)
+  bit 7,h
+  jr nz,y_integrate_negative
+  ld de,(ypos)
   add hl,de
   ld (ypos),hl
+  ld a,(ypage)
+  adc a,0
+  ld (ypage),a
+  jr check_landing
+ y_integrate_negative:
+  ld de,(ypos)
+  add hl,de
+  ld (ypos),hl
+  ld a,(ypage)
+  adc a,$FF
+  ld (ypage),a
+check_landing:
   ; Only land while descending; stand on the floor at Sonic's centre.
   ld hl,(yvel)
   bit 7,h
   ret nz
   call get_floor
-  ld hl,(ypos)
-  ld a,h
-  add a,32
-  cp c
+  ld a,(ypos+1)
+  ld l,a
+  ld a,(ypage)
+  ld h,a
+  ld de,32
+  add hl,de
+  or a
+  sbc hl,bc
   ret c
 follow_floor:
   call get_floor
-  ld a,c
-  sub 32
-  ld h,a
+  ld h,b
+  ld l,c
+  ld de,32
+  or a
+  sbc hl,de
+  ld a,h
+  ld (ypage),a
+  ld h,l
   ld l,0
   ld (ypos),hl
   ld hl,0
@@ -326,16 +370,118 @@ follow_floor:
   ld (grounded),a
   ret
 get_floor:
+  ; 16-bit world x at Sonic's centre, divided by eight.
   ld a,(xpos+1)
-  add a,12
-  srl a
-  srl a
-  srl a
-  ld e,a
-  ld d,0
-  ld hl,heights
+  ld l,a
+  ld a,(xpage)
+  ld h,a
+  ld de,12
+  add hl,de
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  add hl,hl
+  ld de,heights
   add hl,de
   ld c,(hl)
+  inc hl
+  ld b,(hl)
+  ret
+
+; Camera coordinates are in 8-pixel tiles. The 9918 has no fine-scroll
+; register; redraw the name table only when a tile boundary is crossed.
+update_camera:
+  ld a,(xpos+1)
+  ld l,a
+  ld a,(xpage)
+  ld h,a
+  ld de,104
+  or a
+  sbc hl,de
+  jr nc,camera_x_nonnegative
+  ld hl,0
+camera_x_nonnegative:
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  ld a,l
+  cp 65
+  jr c,camera_x_ready
+  ld a,64
+camera_x_ready:
+  ld c,a
+  ld a,(ypos+1)
+  ld l,a
+  ld a,(ypage)
+  ld h,a
+  ld de,72
+  or a
+  sbc hl,de
+  jr nc,camera_y_nonnegative
+  ld hl,0
+camera_y_nonnegative:
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  ld a,l
+  cp 25
+  jr c,camera_y_ready
+  ld a,24
+camera_y_ready:
+  ld b,a
+  ld a,(camera_x)
+  cp c
+  jr nz,camera_changed
+  ld a,(camera_y)
+  cp b
+  ret z
+camera_changed:
+  ld a,c
+  ld (camera_x),a
+  ld a,b
+  ld (camera_y),a
+  ; world map address = base + camera_y * 96 + camera_x
+  ld l,b
+  ld h,0
+  add hl,hl                ; * 2
+  add hl,hl                ; * 4
+  add hl,hl                ; * 8
+  add hl,hl                ; * 16
+  add hl,hl                ; * 32
+  ld d,h
+  ld e,l
+  add hl,hl                ; * 64
+  add hl,de                ; * 96
+  ld e,c
+  ld d,0
+  add hl,de
+  ld de,ground_map
+  add hl,de
+  push hl
+  ld hl,$5800
+  call vdp_addr
+  pop hl
+  ld b,24
+camera_row:
+  ld c,32
+camera_col:
+  ld a,(hl)
+  out ($BE),a
+  inc hl
+  dec c
+  jr nz,camera_col
+  ld de,64
+  add hl,de
+  djnz camera_row
   ret
 
 animate:
@@ -476,14 +622,26 @@ frame_index_ready:
   ; Two 16x16 layers in each 16x16 quadrant: four sprites per scanline.
   ld b,0
 sprite_loop:
+  ld a,(camera_y)
+  add a,a
+  add a,a
+  add a,a
+  ld c,a
   ld a,(ypos+1)
+  sub c
   bit 2,b
   jr z,sprite_top
   add a,16
 sprite_top:
   dec a
   out ($BE),a
+  ld a,(camera_x)
+  add a,a
+  add a,a
+  add a,a
+  ld c,a
   ld a,(xpos+1)
+  sub c
   bit 1,b
   jr z,sprite_left
   add a,16

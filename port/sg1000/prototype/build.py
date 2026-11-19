@@ -11,8 +11,14 @@ sys.path.insert(0, str(ROOT / 'port/sg1000'))
 import prepare_sonic
 import layered_sonic
 
-# Pixel-height steps, each eight pixels wide. Stairs approximate slopes.
-HEIGHTS = [160] * 8 + [152, 144, 136, 128, 120] + [120] * 4 + [128, 136, 144, 152, 160] + [160] * 10
+# One floor height per 8-pixel column, on a 768x384 pixel test course.
+HEIGHTS = ([208] * 12 + list(range(200, 136, -8)) + [144] * 10
+           + list(range(152, 248, 8)) + [240] * 10
+           + list(range(232, 152, -8)) + [160] * 10
+           + list(range(168, 232, 8)) + [224] * 16)
+WORLD_WIDTH = 96
+WORLD_HEIGHT = 48
+
 
 
 def main():
@@ -43,11 +49,11 @@ def main():
                 patterns, colours = layered_sonic.convert(frame, palette)
                 frames.extend(patterns + colours)
         (out / 'sonic_frames.bin').write_bytes(frames)
-        assert len(HEIGHTS) == 32 and all(h % 8 == 0 for h in HEIGHTS)
-        (out / 'heights.bin').write_bytes(bytes(HEIGHTS))
+        assert len(HEIGHTS) == WORLD_WIDTH and all(h % 8 == 0 for h in HEIGHTS)
+        (out / 'heights.bin').write_bytes(b''.join(h.to_bytes(2, 'little') for h in HEIGHTS))
         (out / 'ground.bin').write_bytes(bytes(
             1 if y * 8 >= HEIGHTS[x] else 0
-            for y in range(24) for x in range(32)))
+            for y in range(WORLD_HEIGHT) for x in range(WORLD_WIDTH)))
         subprocess.run([args.wla_z80, '-o', str(out / 'prototype.o'),
                         'port/sg1000/prototype/main.asm'], cwd=ROOT, check=True)
         (out / 'prototype.lnk').write_text('[objects]\n' + str(out / 'prototype.o') + '\n')
