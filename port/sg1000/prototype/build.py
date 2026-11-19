@@ -96,6 +96,22 @@ def ghz_visual_rows(rom):
     return bytes(offsets) + b''.join(rows)
 
 
+def deduplicate_frames(frames, frame_size=264):
+    """Store repeated whole frames once while preserving the pointer order."""
+    if not frames or len(frames) % frame_size:
+        raise ValueError('incomplete sprite frame data')
+    unique = []
+    offsets = []
+    lookup = {}
+    for i in range(0, len(frames), frame_size):
+        frame = bytes(frames[i:i + frame_size])
+        if frame not in lookup:
+            lookup[frame] = len(unique) * frame_size
+            unique.append(frame)
+        offsets.append(lookup[frame])
+    return b''.join(unique), offsets
+
+
 def ring_buckets(rings):
     """Index sorted GHZ rings by 256-pixel page for bounded runtime scans."""
     if len(rings) > 255 or rings != sorted(rings):
@@ -148,7 +164,10 @@ def main():
                 frame = (data / 'sonic_{:02X}_{}.sonicuncart'.format(index, direction)).read_bytes()
                 patterns, colours = layered_sonic.convert(frame, palette)
                 frames.extend(patterns + colours)
-        (out / 'sonic_frames.bin').write_bytes(frames)
+        frame_data, frame_offsets = deduplicate_frames(frames)
+        (out / 'sonic_frames.bin').write_bytes(frame_data)
+        (out / 'sonic_frame_ptrs.inc').write_text(
+            ''.join('.dw frame_data + {}\n'.format(offset) for offset in frame_offsets))
         assert len(HEIGHTS) == WORLD_WIDTH and all(h % 8 == 0 for h in HEIGHTS)
         (out / 'heights.bin').write_bytes(b''.join(h.to_bytes(2, 'little') for h in HEIGHTS))
         rows = [bytes(int(y * 8 >= HEIGHTS[x]) for x in range(WORLD_WIDTH))

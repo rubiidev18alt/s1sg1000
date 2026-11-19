@@ -44,6 +44,15 @@ class RuntimeLayoutTest(unittest.TestCase):
                                    for x, t in enumerate(layout[y*256:(y+1)*256])])
         self.assertLess(len(encoded) + len(profiles), 1400)
 
+    def test_frame_deduplication_preserves_indices(self):
+        frames = bytes([1] * 264 + [2] * 264 + [1] * 264)
+        packed, offsets = mod.deduplicate_frames(frames)
+        self.assertEqual(offsets, [0, 264, 0])
+        self.assertEqual(len(packed), 528)
+        self.assertEqual(b''.join(packed[i:i+264] for i in offsets), frames)
+        with self.assertRaises(ValueError):
+            mod.deduplicate_frames(bytes(265))
+
     def test_ring_buckets_cover_every_visible_position(self):
         rom = ROOT / 'Sonic The Hedgehog (USA, Europe, Brazil) (En).sms'
         if not rom.exists():
