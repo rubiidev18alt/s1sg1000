@@ -192,11 +192,8 @@ wait_vblank:
   cpl
   ld (controls),a
   ld b,a
-  ld a,(menu_selection)
-  or a
-  jr nz,ghz_input
-  ; In TEST, button 1 + button 2 retains the animation viewer. Button 2
-  ; alone toggles free movement on its rising edge.
+  ; In either zone, button 1 + button 2 retains the animation viewer.
+  ; Button 2 alone toggles free movement on its rising edge.
   ld a,b
   and $30
   cp $30
@@ -211,10 +208,6 @@ wait_vblank:
   jr z,normal_frame
   call debug_move
   jr frame_draw
-ghz_input:
-  ld a,b
-  bit 5,a
-  jr nz,preview_frame
 normal_frame:
   call physics_x
   call physics_y
@@ -253,8 +246,8 @@ debug_toggle:
   ld (frame_id),a
   ret
 
-; TEST debug flight: 4 pixels per frame, including diagonals. Positions are
-; clamped to the existing course dimensions, but terrain collision is ignored.
+; Debug flight: 4 pixels per frame, including diagonals. Clamp to each
+; zone's player bounds; terrain collision is ignored.
 debug_move:
   ld a,6
   ld (frame_id),a
@@ -282,11 +275,16 @@ debug_right:
   ld de,4
   add hl,de
   ld de,744
+  ld a,(menu_selection)
+  or a
+  jr z,debug_x_limit_ready
+  ld de,6559
+debug_x_limit_ready:
   or a
   sbc hl,de
   add hl,de
   jr c,debug_face_right
-  ld hl,744
+  ex de,hl
 debug_face_right:
   xor a
   ld (facing),a
@@ -318,11 +316,16 @@ debug_down:
   ld de,4
   add hl,de
   ld de,352
+  ld a,(menu_selection)
+  or a
+  jr z,debug_y_limit_ready
+  ld de,480
+debug_y_limit_ready:
   or a
   sbc hl,de
   add hl,de
   jr c,debug_y_store
-  ld hl,352
+  ex de,hl
 debug_y_store:
   ld a,h
   ld (ypage),a

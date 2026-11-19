@@ -94,14 +94,36 @@ int main(int argc, char** argv) {
             assert(vram2[0x1800 + i] == 0);      // sky outside HUD
         assert(vram2[0x1800 + 15 * 32 + i] == 1); // ground
     }
-    // GHZ1 keeps the original hold-button-2 animation viewer; it does not
-    // toggle TEST debug mode.
+    // GHZ debug toggles once, flies through terrain, clamps to GHZ bounds,
+    // and resumes normal gravity on exit. The viewer uses both buttons.
+    button2.press(Key_2);
+    button2.frames(5);
+    assert(button2.byte(0xC03D) == 1);
+    button2.release(Key_2);
+    button2.frames(2);
+    button2.set_x(6556);
+    button2.set_y(476);
+    button2.press(Key_Right);
+    button2.press(Key_Down);
+    button2.frames(4);
+    assert(button2.x() == 6559 && button2.y() == 480);
+    button2.release(Key_Right);
+    button2.release(Key_Down);
+    button2.set_x(256);
+    button2.set_y(200);
+    button2.press(Key_2);
+    button2.frames(3);
+    assert(button2.byte(0xC03D) == 0 && button2.y() > 200);
+    button2.release(Key_2);
+    button2.frames(3);
+    button2.press(Key_1);
     button2.press(Key_2);
     button2.press(Key_Right);
     button2.frames(3);
     assert(button2.byte(0xC00D) == 1 && button2.x() == 256);
     assert(button2.byte(0xC03D) == 0);
     button2.release(Key_Right);
+    button2.release(Key_1);
     button2.release(Key_2);
     button2.frames(3);
     // A real GHZ ring at (912,200) is rendered from the SMS metatile map.

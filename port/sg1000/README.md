@@ -78,7 +78,7 @@ foreground pixels. Run it
 in Gearsystem's SG-1000 mode (the `.sg` extension should select it; force
 SG-1000 if needed). NTSC timing is the reference.
 
-In TEST, tap button 2 to toggle debug flight. Use the D-pad to move freely in
+In either zone, tap button 2 to toggle debug flight. Use the D-pad to move freely in
 all four directions, including diagonally, through terrain without gravity;
 the camera follows and movement stays within the test-course bounds. Tap
 button 2 again to return to normal physics, with momentum cleared. Exiting
@@ -138,9 +138,9 @@ scanline, so adding enemies will require a different sprite budget or flicker.
 All 42 frame indices are included for both directions. Walking, jumping,
 looking, braking and idle use selected frames; other game actions are not
 implemented. To inspect all frames in TEST, hold buttons 1 and 2 together
-and tap left/right; in GHZ1, hold button 2 and tap left/right. Releasing the
-viewer controls resumes the previous mode; the preview does not advance
-physics. Button 2 alone toggles debug flight only in TEST.
+and tap left/right in either zone. Releasing the viewer controls resumes
+the previous mode; the preview does not advance physics. Button 2 alone
+toggles debug flight in either zone.
 
 The waiting animation starts after 360 idle frames, following the SMS bored
 frame sequence and its loop point. Other animation timing remains approximate.
