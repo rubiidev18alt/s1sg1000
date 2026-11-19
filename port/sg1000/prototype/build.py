@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'port/sg1000'))
 import prepare_sonic
 import layered_sonic
+import menu_font
 
 # One floor height per 8-pixel column, on a 768x384 pixel test course.
 HEIGHTS = ([208] * 12 + list(range(200, 136, -8)) + [144] * 10
@@ -40,6 +41,8 @@ def main():
         subprocess.run([sys.executable, 'tools/rom_unpack.py', str(rom),
                         'annot/sonic1.cfg', 'src/whole.asm'], cwd=ROOT,
                        check=True, stdout=subprocess.DEVNULL)
+        (out / 'menu_font.bin').write_bytes(menu_font.font_patterns(
+            (data / 'world_map_1_ending.art0000').read_bytes()))
         prepare_sonic.prepare(data, out / 'sonic')
         palette = (data / 'lv_ghz.pal3').read_bytes()[16:]
         frames = bytearray()

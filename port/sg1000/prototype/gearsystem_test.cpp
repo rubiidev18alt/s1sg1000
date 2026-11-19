@@ -11,13 +11,19 @@ struct Simulation {
     GearsystemCore core;
     std::vector<u8> video;
     std::vector<s16> audio;
-    Simulation(const char* rom) : video(320 * 288 * 4), audio(16384) {
+    Simulation(const char* rom, bool auto_start = true) : video(320 * 288 * 4), audio(16384) {
         core.Init();
         Cartridge::ForceConfiguration config{Cartridge::CartridgeSG1000Mapper,
             Cartridge::CartridgeUnknownZone, Cartridge::CartridgeNTSC,
             Cartridge::CartridgeSG1000};
         assert(core.LoadROM(rom, &config));
         frames(15);
+        if (auto_start) {
+            press(Key_1);
+            frames(2);
+            release(Key_1);
+            frames(3);
+        }
     }
     void frames(int count) {
         int samples = 0;
@@ -44,6 +50,29 @@ struct Simulation {
 
 int main(int argc, char** argv) {
     if (argc != 2) return 2;
+    Simulation menu(argv[1], false);
+    auto vram = menu.core.GetVideo()->GetVRAM();
+    const u8 title[] = {8, 9, 10, 11, 0, 12, 11, 13, 11, 14, 15};
+    const u8 option[] = {2, 0, 15, 11, 12, 15};
+    for (int i = 0; i < 11; ++i) assert(vram[0x190A + i] == title[i]);
+    for (int i = 0; i < 6; ++i) assert(vram[0x198D + i] == option[i]);
+    assert(vram[0x1B00] == 0xD0);
+    menu.press(Key_Right);
+    menu.frames(5);
+    assert(menu.x() == 24 && vram[0x190A] == 8);
+    menu.release(Key_Right);
+    menu.press(Key_1);
+    menu.frames(4);
+    assert(vram[0x190A] == 8); // A held confirmation does not start the game.
+    menu.release(Key_1);
+    menu.frames(4);
+    assert(vram[0x190A] != 8 && menu.grounded() && menu.y() == 176);
+    Simulation button2(argv[1], false);
+    button2.press(Key_2);
+    button2.frames(2);
+    button2.release(Key_2);
+    button2.frames(5);
+    assert(button2.grounded() && button2.y() == 176 && button2.byte(0xC00D) == 6);
     Simulation s(argv[1]);
     assert(s.x() == 24 && s.y() == 176 && s.grounded());
     int start_camera_y = s.camera_y();

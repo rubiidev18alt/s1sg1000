@@ -107,7 +107,25 @@ solid_tile:
   ld hl,$6000
   call vdp_addr
   ld a,$F1
+  out ($BE),a              ; characters 0-7
+  out ($BE),a              ; characters 8-15
+  ; Upload the original SMS world-map glyphs, reduced to white pixels.
+  ld hl,$4040             ; character 8
+  call vdp_addr
+  ld hl,menu_font_patterns
+  ld bc,64
+  call vdp_copy
+  ld hl,$4010             ; character 2: selection arrow
+  call vdp_addr
+  ld hl,menu_arrow
+  ld bc,8
+  call vdp_copy
+  ; Terminate the hardware sprite list while the menu is visible.
+  ld hl,$5B00
+  call vdp_addr
+  ld a,$D0
   out ($BE),a
+  call zone_menu
   call update_camera
   call draw_sonic
 main_loop:
@@ -150,6 +168,49 @@ vdp_copy:
   or c
   jr nz,vdp_copy
   ret
+
+; Single choice menu. Require a fresh button press and release so choosing
+; with button 1 cannot cause a jump (or button 2 start the frame viewer).
+zone_menu:
+  ld hl,$590A             ; row 8, column 10
+  call vdp_addr
+  ld hl,menu_title
+  ld bc,11
+  call vdp_copy
+  ld hl,$598D             ; row 12, column 13
+  call vdp_addr
+  ld hl,menu_test
+  ld bc,6
+  call vdp_copy
+menu_wait_initial_release:
+  call menu_poll
+  and $30
+  jr nz,menu_wait_initial_release
+menu_wait_press:
+  call menu_poll
+  and $30
+  jr z,menu_wait_press
+menu_wait_release:
+  call menu_poll
+  and $30
+  jr nz,menu_wait_release
+  ret
+menu_poll:
+  in a,($BF)
+  and $80
+  jr z,menu_poll
+  in a,($DC)
+  cpl
+  ret
+
+menu_title:
+.db 8,9,10,11,0,12,11,13,11,14,15 ; ZONE SELECT
+menu_test:
+.db 2,0,15,11,12,15               ; > TEST
+menu_arrow:
+.db $00,$40,$60,$70,$60,$40,$00,$00
+menu_font_patterns:
+.INCBIN "build/sg1000/prototype/menu_font.bin"
 
 physics_x:
   ; Down while grounded and moving enters a persistent roll.
