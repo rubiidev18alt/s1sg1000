@@ -69,9 +69,10 @@ no playable game or sound/physics code is produced by this step.
 The separate prototype builds a 32 KiB SG-1000 ROM with a black background,
 a 768-pixel-wide white test course with multiple stepped hills. Move with left/right; button 1 jumps.
 Holding button 1 produces a higher jump. Press down while moving to roll;
-rolling slows on flat or uphill ground, but retains speed downhill. Hold down
-and the direction of travel on a descent to accelerate the roll (an
-approximation, capped at 12 pixels per frame). Release
+rolling slows on flat or uphill ground, but retains speed downhill. After
+starting a roll, hold up and the direction of travel on a descent to
+accelerate (an approximation, capped at 12 pixels per frame). Down and the
+direction of travel also works. Release
 down and press against the direction of travel to unroll and brake; the roll
 also ends when Sonic stops or jumps. Reset the emulator to restart. At the ZONE SELECT menu, tap button 2 to switch between TEST and GHZ1;
 press and release button 1 to enter either test level.
@@ -199,8 +200,8 @@ original SMS material data, and other side collision is still incomplete.
 The SMS GHZ1 tile-special data contains one ramp launcher, at world position
 (2272,416). Its background-tile artwork is a two-pattern approximation of
 the original ramp, rather than separate hardware sprites (Sonic already uses
-the scanline sprite budget). Roll down the approach while holding down and
-right, then hold up and right at the ramp with speed above 3 pixels per frame
+the scanline sprite budget). Start rolling, then hold up and right down the
+approach and through the ramp. A speed above 3 pixels per frame is needed
 to launch. The launch keeps horizontal momentum, sets upward velocity based on
 speed, plays an approximate ramp sound and limits camera catch-up to one tile
 per update on each axis while airborne. High launches are clamped at the top

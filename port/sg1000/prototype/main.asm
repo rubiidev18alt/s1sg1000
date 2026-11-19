@@ -502,7 +502,7 @@ enter_roll:
 roll_physics:
   ; On the SMS (01:535B-53A4), pressing opposite with down released
   ; exits the grounded roll and applies normal braking. Same-direction input
-  ; and horizontal input while down is held only boosts on a descent.
+  ; and directional input with up or down boosts only on a descent.
   ld a,(controls)
   bit 1,a
   jr nz,roll_friction
@@ -552,11 +552,14 @@ roll_stop:
   ld hl,0
   jp save_vx
 roll_maintain_speed:
-  ; Hold the direction of travel and down to gain speed on a descent.
+  ; Hold up+direction (or down+direction) to gain speed on a descent.
   ld a,(controls)
-  and $0E
+  and $0F
   cp $0A
+  jr z,roll_accel_right
+  cp $09
   jr nz,roll_accel_left_test
+roll_accel_right:
   ld hl,(xvel)
   bit 7,h
   jp nz,save_vx
@@ -570,7 +573,10 @@ roll_maintain_speed:
   jp save_vx
 roll_accel_left_test:
   cp $06
+  jr z,roll_accel_left
+  cp $05
   jr nz,roll_keep_speed
+roll_accel_left:
   ld hl,(xvel)
   bit 7,h
   jp z,save_vx
