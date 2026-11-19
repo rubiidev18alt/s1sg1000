@@ -25,6 +25,9 @@ sfx_ring:
 sfx_roll:
   ld hl,sfx_roll_data
   jr sfx_start
+sfx_launch:
+  ld hl,sfx_launch_data
+  jr sfx_start
 sfx_brake:
   ld hl,sfx_brake_data
 sfx_start:
@@ -368,4 +371,23 @@ sfx_brake_data:
 .db 1
 .dw 119
 .db 0
+.db 0
+
+; Short approximation of SMS SFX 05 (ramp whoosh), tone channel 2 only.
+sfx_launch_data:
+.db 3
+.dw 56
+.db 3
+.db 3
+.dw 53
+.db 2
+.db 3
+.dw 50
+.db 1
+.db 3
+.dw 28
+.db 3
+.db 6
+.dw 25
+.db 6
 .db 0

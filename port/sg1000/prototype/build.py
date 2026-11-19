@@ -50,6 +50,15 @@ def ghz_solid_cells(layout, flags):
     return solid
 
 
+def ghz_ramp_positions(rom, specials):
+    """Locate SMS ramp-jump metatiles (special action 02) in GHZ1."""
+    _, layout, _, _, _ = prepare_ghz_layout.extract(rom)
+    if max(layout) >= len(specials):
+        raise ValueError('truncated GHZ tile-special table')
+    return [(i % 256 * 32, i // 256 * 32)
+            for i, tile in enumerate(layout) if specials[tile] == 2]
+
+
 def ghz_runtime_data(rom):
     """RLE each row of collision types for random access on the Z80."""
     info, layout, flags, floor, _ = prepare_ghz_layout.extract(rom)
@@ -80,7 +89,7 @@ def ghz_terrain_patterns(art):
     the original checkerboard. A tile gets one fixed colour pair.
     """
     raw = menu_font.decode_hy(art)
-    if len(raw) < 0x11 * 32:
+    if len(raw) < 0xd7 * 32:
         raise ValueError('truncated GHZ art')
     def convert(index, bright):
         result = bytearray()
@@ -96,14 +105,18 @@ def ghz_terrain_patterns(art):
     # The SMS highlight and shadow use extra colours. Keep a clean light-green
     # lip and the original grass texture below it in the two-colour version.
     grass = bytes([0xff, 0xff]) + grass[2:]
-    return grass + convert(0x02, {3}) + convert(0x03, {3})
+    # Monochrome ramp pieces use the original GHZ d0/d6 pixels; the two
+    # TMS tiles approximate the 32x32 SMS metatile without extra sprites.
+    return (grass + convert(0x02, {3}) + convert(0x03, {3})
+            + convert(0xd0, set(range(1, 16)))
+            + convert(0xd6, set(range(1, 16))))
 
 
 def ghz_visual_rows(rom):
     """Pack collision silhouettes with surface/soil into short/long RLE runs.
 
-    Two high bits select sky, solid terrain or grass. The occupancy is
-    unchanged; grass marks occupied cells with an empty cell directly above.
+    The two high bits select sky, soil, grass or the ramp artwork. Collision
+    is unchanged; grass marks occupied cells with an empty cell directly above.
     """
     _, layout, flags, floor, _ = prepare_ghz_layout.extract(rom)
     solid = []
@@ -119,6 +132,12 @@ def ghz_visual_rows(rom):
     for y, cells in enumerate(solid):
         types = [0 if not value else (2 if y == 0 or not solid[y - 1][x] else 1)
                  for x, value in enumerate(cells)]
+        # The original special-02 ramp's nonempty 8x8 cells, derived from
+        # metatile $50 at (2272,416). Collision remains unchanged.
+        for xoffset, yoffset in ((3, 1), (0, 2), (1, 2), (3, 2),
+                                 (0, 3), (1, 3), (2, 3), (3, 3)):
+            if y == 416 // 8 + yoffset:
+                types[2272 // 8 + xoffset] = 3
         packed = bytearray()
         for value, group in groupby(types):
             count = sum(1 for _ in group)
@@ -190,6 +209,11 @@ def main():
         ring_patterns, hud_patterns = prepare_audio_rings.ring_and_hud_art(rom_bytes)
         (out / 'ring_patterns.bin').write_bytes(ring_patterns)
         (out / 'ring_hud_patterns.bin').write_bytes(hud_patterns)
+        ramps = ghz_ramp_positions(rom_bytes, (data / 'lv_ghz.tilespecials').read_bytes())
+        if ramps != [(2272, 416)]:
+            raise ValueError('unexpected GHZ1 launch-ramp layout')
+        (out / 'ghz_ramp.inc').write_text(
+            '.DEFINE GHZ_RAMP_X {}\n.DEFINE GHZ_RAMP_Y {}\n'.format(*ramps[0]))
         ghz_map, ghz_floor = ghz_runtime_data(rom_bytes)
         (out / 'ghz_collision_rows.bin').write_bytes(ghz_map)
         (out / 'ghz_floor_profiles.bin').write_bytes(ghz_floor)

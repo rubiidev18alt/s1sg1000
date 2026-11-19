@@ -44,6 +44,18 @@ class RuntimeLayoutTest(unittest.TestCase):
                                    for x, t in enumerate(layout[y*256:(y+1)*256])])
         self.assertLess(len(encoded) + len(profiles), 1400)
 
+    def test_ramp_position_from_original_tile_specials(self):
+        rom = ROOT / 'baserom/sonic1.sms'
+        specials = ROOT / 'src/data/lv_ghz.tilespecials'
+        if not rom.exists() or not specials.exists():
+            self.skipTest('user-supplied ROM assets absent')
+        self.assertEqual(mod.ghz_ramp_positions(rom.read_bytes(), specials.read_bytes()), [(2272, 416)])
+        tilemap = (ROOT / 'src/data/lv_ghz.tilemap').read_bytes()[0x50 * 16:0x51 * 16]
+        self.assertEqual({i for i, tile in enumerate(tilemap) if 0xd0 <= tile <= 0xd7},
+                         {7, 8, 9, 11, 12, 13, 14, 15})
+        with self.assertRaises(ValueError):
+            mod.ghz_ramp_positions(rom.read_bytes(), bytes(2))
+
     def test_frame_deduplication_preserves_indices(self):
         frames = bytes([1] * 264 + [2] * 264 + [1] * 264)
         packed, offsets = mod.deduplicate_frames(frames)
@@ -74,10 +86,12 @@ class RuntimeLayoutTest(unittest.TestCase):
         if not art.exists():
             self.skipTest('unpacked SMS art absent')
         patterns = mod.ghz_terrain_patterns(art.read_bytes())
-        self.assertEqual(len(patterns), 24)
+        self.assertEqual(len(patterns), 40)
         self.assertEqual(patterns[:8], bytes([0xff, 0xff, 0xaa, 0xaa, 0xaa, 0x44, 0x44, 0x44]))
         self.assertEqual(patterns[8:16], bytes(8))
         self.assertEqual(patterns[16:24], bytes([0xff] * 8))
+        self.assertTrue(any(patterns[24:32]))
+        self.assertTrue(any(patterns[32:40]))
         with self.assertRaises(ValueError):
             mod.ghz_terrain_patterns(b'')
 
@@ -100,7 +114,7 @@ class RuntimeLayoutTest(unittest.TestCase):
                 if run & 32:
                     count = (count << 8) | encoded[pos]
                     pos += 1
-                self.assertIn(tile_type, (0, 1, 2))
+                self.assertIn(tile_type, (0, 1, 2, 3))
                 self.assertGreater(count, 0)
                 actual.extend([tile_type] * count)
             expected = []
@@ -109,9 +123,12 @@ class RuntimeLayoutTest(unittest.TestCase):
                 value = floor[kind*32 + (x%4)*8 + 4]
                 height = value if value < 128 else value - 256
                 expected.append(int(value != 128 and (y%4)*8 + 4 >= height))
-            self.assertEqual([int(tile != 0) for tile in actual], expected)
-            self.assertEqual(actual, [0 if not solid else (2 if not previous[x] else 1)
-                                      for x, solid in enumerate(expected)])
+            expected_tiles = [0 if not solid else (2 if not previous[x] else 1)
+                              for x, solid in enumerate(expected)]
+            ramp = {(287, 53), (284, 54), (285, 54), (287, 54),
+                    (284, 55), (285, 55), (286, 55), (287, 55)}
+            self.assertEqual(actual, [3 if (x, y) in ramp else tile
+                                      for x, tile in enumerate(expected_tiles)])
             previous = expected
 
 

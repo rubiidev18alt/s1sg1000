@@ -686,6 +686,80 @@ int main(int argc, char** argv) {
     ghz_roll.press(Key_Right); ghz_roll.press(Key_Down);
     ghz_roll.frames(10);
     assert(ghz_roll.vx() > 0x0200); // original GHZ downhill profile
+    // GHZ1's SMS special-02 ramp at (2272,416). The requested up+right
+    // input launches only with enough speed, preserving momentum and sound.
+    Simulation ramp(argv[1], false);
+    ramp.press(Key_2); ramp.frames(3); ramp.release(Key_2); ramp.frames(2);
+    ramp.press(Key_1); ramp.frames(3); ramp.release(Key_1); ramp.frames(40);
+    ramp.set_byte(0xC03D, 1); // hold position while the camera redraws
+    ramp.set_x(2260); ramp.set_y(400); ramp.frames(20);
+    auto ramp_vram = ramp.core.GetVideo()->GetVRAM();
+    assert(ramp_vram[0x200A] == 0xF7);
+    int ramp_art_tiles = 0;
+    for (int i = 0; i < 768; ++i)
+        ramp_art_tiles += (ramp_vram[0x1800 + i] == 80 || ramp_vram[0x1800 + i] == 81);
+    assert(ramp_art_tiles == 8);
+    ramp.set_byte(0xC03D, 0);
+    ramp.set_x(2271); ramp.set_y(410);
+    ramp.set_word(0xC004, 0x0200); ramp.set_word(0xC006, 0);
+    ramp.set_byte(0xC008, 1); ramp.set_byte(0xC015, 1);
+    ramp.press(Key_Right); ramp.press(Key_Up); ramp.frames(2);
+    assert(ramp.byte(0xC070) == 0); // too slow
+    ramp.release(Key_Up); ramp.frames(2);
+    ramp.set_x(2271); ramp.set_y(410);
+    ramp.set_word(0xC004, 0x0BFC); ramp.set_word(0xC006, 0);
+    ramp.set_byte(0xC008, 1); ramp.set_byte(0xC015, 1);
+    ramp.frames(2);
+    assert(ramp.byte(0xC070) == 0); // no up input
+    ramp.set_x(2271); ramp.set_y(410);
+    ramp.set_word(0xC004, 0x0BFC); ramp.set_word(0xC006, 0);
+    ramp.set_byte(0xC008, 1); ramp.set_byte(0xC015, 1);
+    ramp.set_byte(0xC013, 16); ramp.set_byte(0xC01E, 1); ramp.set_byte(0xC014, 40);
+    ramp.press(Key_Right); ramp.press(Key_Up);
+    for (int i = 0; i < 12 && ramp.byte(0xC070) == 0; ++i) ramp.frames(1);
+    assert(ramp.byte(0xC070) == 1 && !ramp.grounded());
+    assert(static_cast<short>(ramp.word(0xC006)) < -0x0E00);
+    assert(ramp.vx() > 0x0B00);
+    bool heard_launch = false;
+    for (int i = 0; i < 12 && !heard_launch; ++i) {
+        ramp.frames(1);
+        heard_launch = ramp.core.GetAudio()->GetPSG()->GetState().channels[2].volume_reg < 15;
+    }
+    assert(heard_launch);
+    int cam_before = ramp.camera_x() + 256 * ramp.byte(0xC01E);
+    int cam_y_before = ramp.camera_y();
+    int ticks_before = ramp.byte(0xC00C);
+    int x_before = ramp.x();
+    ramp.frames(20);
+    int cam_after = ramp.camera_x() + 256 * ramp.byte(0xC01E);
+    int updates = (ramp.byte(0xC00C) - ticks_before) & 255;
+    assert(updates > 0);
+    assert(cam_after - cam_before <= updates); // at most 8 px per update
+    assert(cam_y_before - ramp.camera_y() <= updates);
+    assert(ramp.x() - x_before > (cam_after - cam_before) * 8);
+    // A high launch must not wrap above y=0 and be mistaken for a fall
+    // below the level. Offscreen Sonic must not wrap around the sprite X.
+    ramp.set_x(3000); ramp.set_y(4);
+    ramp.set_word(0xC006, -0x0800);
+    ramp.set_byte(0xC008, 0); ramp.set_byte(0xC070, 1);
+    ramp.set_byte(0xC013, 0); ramp.set_byte(0xC01E, 0); ramp.set_byte(0xC014, 0);
+    ramp.frames(40);
+    assert(ramp.byte(0xC012) == 0 && ramp.x() >= 3000);
+    assert(ramp.sprite_y() == 0xD0); // still far beyond the trailing camera
+    // Run down the actual approach instead of teleporting onto the launch lip.
+    Simulation approach(argv[1], false);
+    approach.press(Key_2); approach.frames(3); approach.release(Key_2); approach.frames(2);
+    approach.press(Key_1); approach.frames(3); approach.release(Key_1); approach.frames(40);
+    approach.set_x(2100); approach.set_y(240);
+    approach.set_word(0xC004, 0x0300); approach.set_word(0xC006, 0);
+    approach.set_byte(0xC008, 1); approach.set_byte(0xC015, 1);
+    approach.press(Key_Right); approach.press(Key_Down);
+    for (int i = 0; i < 240 && approach.x() < 2250; ++i) approach.frames(1);
+    assert(approach.x() >= 2250 && approach.vx() > 0x0300);
+    approach.release(Key_Down); approach.press(Key_Up);
+    for (int i = 0; i < 100 && approach.byte(0xC070) == 0 && approach.x() < 2320; ++i)
+        approach.frames(1);
+    assert(approach.byte(0xC070) == 1);
     Simulation flat_roll(argv[1]);
     flat_roll.set_word(0xC004, 0x0200); flat_roll.set_byte(0xC015, 1);
     flat_roll.press(Key_Right); flat_roll.press(Key_Down);

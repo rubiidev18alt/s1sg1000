@@ -102,14 +102,14 @@ movement engine. Acceleration ($10), braking ($30), coasting ($08), maximum
 normal horizontal speed ($0300), jump velocity ($FC80), jump hold (16 frames),
 gravity ($38), and flat rolling drag ($04) are based on the SMS disassembly.
 Grounded roll braking follows the original opposite-direction input behavior.
-The downhill friction exemption applies only to TEST and is a prototype
-approximation, not a port of the SMS slope acceleration system. TEST uses a
+Downhill friction exemption and direction-held roll acceleration are
+prototype approximations in both zones, not the full SMS slope physics. TEST uses a
 simple centre-point height lookup with 8-pixel steps. GHZ1 uses the original
 floor profiles with centre and inset foot sensors to bridge missed contacts
 at platform edges. Full-solid blocks stop motion from either side, and floor
 tiles connected to solid terrain also block upward motion. Detached platforms
-remain one-way. Wall and ceiling probes are approximate, and there are no
-moving platforms or original level objects.
+remain one-way. Wall and ceiling probes are approximate, and moving
+platforms and most original level objects are not implemented.
 There is no complete SMS slope and rolling physics or full music driver yet.
 In both levels the camera is offset 16 pixels to the right of its original
 prototype position, giving more view ahead. The camera follows horizontally
@@ -196,8 +196,18 @@ at their sides and undersides. Floor tiles connected to solid blocks also
 have solid undersides; detached platforms remain semisolid, so Sonic can jump
 through them from below. Connectedness is a prototype approximation, not
 original SMS material data, and other side collision is still incomplete.
-Original moving platform objects are not yet implemented.
-Falling below the map respawns Sonic. No enemies or other objects are present.
+The SMS GHZ1 tile-special data contains one ramp launcher, at world position
+(2272,416). Its background-tile artwork is a two-pattern approximation of
+the original ramp, rather than separate hardware sprites (Sonic already uses
+the scanline sprite budget). Roll down the approach while holding down and
+right, then hold up and right at the ramp with speed above 3 pixels per frame
+to launch. The launch keeps horizontal momentum, sets upward velocity based on
+speed, plays an approximate ramp sound and limits camera catch-up to one tile
+per update on each axis while airborne. High launches are clamped at the top
+of the map, and offscreen Sonic is hidden until the camera catches up. This
+is an approximation, not the original full physics or sound driver.
+Original moving platform objects are not yet implemented. Falling below the
+map respawns Sonic. No enemies or other objects are present.
 
 The prototype packs the collision-profile IDs into row-indexed runs, with the
 floor profiles used by the layout. Z80 routines read the metatiles and their

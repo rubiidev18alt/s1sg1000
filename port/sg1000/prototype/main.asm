@@ -1,6 +1,7 @@
 ; SG-1000 Sonic movement sandbox, WLA-DX. All motion values are 8.8 fixed point.
 ; Keep Sonic 16 pixels further left on screen to show more terrain ahead.
 .DEFINE CAMERA_FOLLOW_X 88
+.INCLUDE "build/sg1000/prototype/ghz_ramp.inc"
 .MEMORYMAP
   DEFAULTSLOT 0
   SLOTSIZE $8000
@@ -79,6 +80,7 @@ ring_anim_frame db
 ring_anim_timer db
 ghz_draw_value db
 ghz_downhill db
+launch_active db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -116,6 +118,7 @@ init:
   ld (anim_phase),a
   ld (anim_subframe),a
   ld (debug_mode),a
+  ld (launch_active),a
   ld a,$FF
   ld (sprite_cached_index),a
   ld (ring_hud_cached_count),a
@@ -227,6 +230,7 @@ wait_vblank:
 normal_frame:
   call physics_x
   call physics_y
+  call ghz_try_launch
   call animate
   jr frame_draw
 preview_frame:
@@ -258,6 +262,7 @@ debug_toggle:
   ld (jump_latch),a
   ld (rolling),a
   ld (grounded),a
+  ld (launch_active),a
   ld (idle_timer),a
   ld (idle_timer_hi),a
   ld (idle_phase),a
@@ -465,6 +470,15 @@ menu_font_patterns:
 .INCBIN "build/sg1000/prototype/menu_font.bin"
 
 physics_x:
+  ld a,(launch_active)
+  or a
+  jr z,physics_x_normal
+  ld a,(grounded)
+  or a
+  jr nz,physics_x_normal
+  ld hl,(xvel)
+  jp save_vx               ; preserve launch momentum in the air
+physics_x_normal:
   ; Down while grounded and moving enters a persistent roll.
   ld a,(rolling)
   or a
@@ -511,8 +525,8 @@ roll_check_right:
   jp move_right
 roll_friction:
   ; SMS flat roll drag is $0004 per frame (01:53A7), not $0010.
-  ; This stepped test course retains its previous downhill exemption: the
-  ; original slope collision/acceleration system is not yet ported.
+  ; TEST samples adjacent height columns; GHZ uses the previous grounded
+  ; descent. Both are approximations of the original slope physics.
   call rolling_downhill
   or a
   jr nz,roll_maintain_speed
@@ -780,6 +794,15 @@ move_y:
   ld a,(ypage)
   adc a,$FF
   ld (ypage),a
+  cp $FF
+  jr nz,check_landing
+  ; Do not wrap a high ramp launch below the map and trigger a respawn.
+  xor a
+  ld (ypage),a
+  ld (ypos),a
+  ld (ypos+1),a
+  ld (yvel),a
+  ld (yvel+1),a
 check_landing:
   ld a,(menu_selection)
   or a
@@ -1416,6 +1439,54 @@ viewer_use:
   ret
 
 draw_sonic:
+  ; During a launch the camera may fall behind. Hide Sonic rather than
+  ; wrapping an offscreen 16-bit position around the 8-bit sprite table.
+  ld a,(launch_active)
+  or a
+  jr z,draw_sonic_visible
+  ld a,(camera_x)
+  ld l,a
+  ld a,(camera_x_hi)
+  ld h,a
+  add hl,hl
+  add hl,hl
+  add hl,hl
+  ex de,hl
+  ld a,(xpos+1)
+  ld l,a
+  ld a,(xpage)
+  ld h,a
+  or a
+  sbc hl,de
+  ld a,h
+  or a
+  jr nz,draw_sonic_hidden
+  ld a,(camera_y)
+  ld l,a
+  ld h,0
+  add hl,hl
+  add hl,hl
+  add hl,hl
+  ex de,hl
+  ld a,(ypos+1)
+  ld l,a
+  ld a,(ypage)
+  ld h,a
+  or a
+  sbc hl,de
+  ld a,h
+  or a
+  jr nz,draw_sonic_hidden
+  ld a,l
+  cp 192
+  jr c,draw_sonic_visible
+draw_sonic_hidden:
+  ld hl,$5B00
+  call vdp_addr
+  ld a,$D0
+  out ($BE),a
+  ret
+draw_sonic_visible:
   ; Each frame is 256 pattern bytes followed by 8 sprite colours.
   ld a,(frame_id)
   ld e,a

@@ -9,6 +9,7 @@ ghz_init:
   ld (grounded),a
   ld (camera_x_hi),a
   ld (ghz_downhill),a
+  ld (launch_active),a
   ld a,1
   ld (xpage),a             ; original start x=256
   ld (ypage),a
@@ -38,11 +39,18 @@ ghz_init:
   ld hl,ghz_terrain_patterns+8
   ld bc,16
   call vdp_copy
+  ld hl,$4280
+  call vdp_addr
+  ld hl,ghz_terrain_patterns+24
+  ld bc,16
+  call vdp_copy
   ld hl,$6008
   call vdp_addr
   ld a,$32
   out ($BE),a
   ld a,$A6
+  out ($BE),a
+  ld a,$F7                ; ramp: white on cyan
   out ($BE),a
   ret
 
@@ -381,6 +389,8 @@ ghz_surface_reached:
   sbc hl,de
   jp c,ghz_next_row
 ghz_apply_floor:
+  xor a
+  ld (launch_active),a
   ld hl,(ghz_surface)
   ld de,32
   or a
@@ -483,6 +493,36 @@ ghz_cam_x_positive:
   jr c,ghz_cam_x_ready
   ld hl,792
 ghz_cam_x_ready:
+  ; During a ramp launch the SMS camera can only catch up by 8px/frame.
+  ld a,(launch_active)
+  or a
+  jr z,ghz_cam_launch_done
+  ld a,(camera_y)
+  cp $FF
+  jr z,ghz_cam_launch_done ; forced redraw/initialisation, not a position
+  ld a,(camera_x)
+  ld c,a
+  ld a,(camera_x_hi)
+  ld b,a
+  push hl
+  or a
+  sbc hl,bc
+  jr c,ghz_cam_launch_restore
+  ld a,h
+  or a
+  jr nz,ghz_cam_launch_cap
+  ld a,l
+  cp 2
+  jr c,ghz_cam_launch_restore
+ghz_cam_launch_cap:
+  pop hl
+  ld l,c
+  ld h,b
+  inc hl
+  jr ghz_cam_launch_done
+ghz_cam_launch_restore:
+  pop hl
+ghz_cam_launch_done:
   push hl
   ld a,(ypos+1)
   ld l,a
@@ -510,6 +550,22 @@ ghz_cam_y_max:
   ld a,40
 ghz_cam_y_ready:
   ld b,a
+  ld a,(launch_active)
+  or a
+  jr z,ghz_cam_y_launch_done
+  ld a,(camera_y)
+  cp $FF
+  jr z,ghz_cam_y_launch_done
+  cp b
+  jr z,ghz_cam_y_launch_done
+  jr c,ghz_cam_y_launch_down
+  dec a
+  jr ghz_cam_y_launch_store
+ghz_cam_y_launch_down:
+  inc a
+ghz_cam_y_launch_store:
+  ld b,a
+ghz_cam_y_launch_done:
   pop hl
   ld a,(camera_y)
   cp b
@@ -677,9 +733,81 @@ ghz_run_count_ready:
   and 3
   jr z,ghz_run_value_ready
   dec a
-  ld a,72                 ; checker soil and walls
-  jr z,ghz_run_value_ready
+  jr z,ghz_run_soil
+  dec a
   ld a,64                 ; two-green grass surface
+  jr z,ghz_run_value_ready
+  ld a,80                 ; approximate original ramp artwork
+  jr ghz_run_value_ready
+ghz_run_soil:
+  ld a,72                 ; checker soil and walls
 ghz_run_value_ready:
   ld (ghz_draw_value),a
   ret
+
+; SMS GHZ1 ramp special 02. Require the requested up+right input and
+; positive speed >3px/frame; original launch vertical velocity is -2*xvel.
+ghz_try_launch:
+  ld a,(menu_selection)
+  or a
+  ret z
+  ld a,(grounded)
+  or a
+  ret z
+  ld a,(controls)
+  and $09
+  cp $09
+  ret nz
+  ld hl,(xvel)
+  ld a,h
+  cp 3
+  ret c
+  ret m
+  jr nz,ghz_launch_speed_ok
+  ld a,l
+  or a
+  ret z
+ghz_launch_speed_ok:
+  ld a,(ypage)
+  cp (GHZ_RAMP_Y-32)>>8
+  ret nz
+  ld a,(ypos+1)
+  cp (GHZ_RAMP_Y-32)&255
+  ret c
+  cp (GHZ_RAMP_Y+8)&255
+  ret nc
+  ld a,(xpos+1)
+  ld l,a
+  ld a,(xpage)
+  ld h,a
+  ld de,12
+  add hl,de
+  ld de,GHZ_RAMP_X+18
+  or a
+  sbc hl,de
+  ret c
+  ld de,18
+  or a
+  sbc hl,de
+  ret nc
+  ld hl,(xvel)
+  ld a,h
+  cp 8
+  ld hl,$F000
+  jr nc,ghz_launch_y_ready
+  ld hl,(xvel)
+  add hl,hl
+  xor a
+  sub l
+  ld l,a
+  ld a,0
+  sbc a,h
+  ld h,a
+ghz_launch_y_ready:
+  ld (yvel),hl
+  xor a
+  ld (grounded),a
+  ld (jump_timer),a
+  inc a
+  ld (launch_active),a
+  jp sfx_launch
