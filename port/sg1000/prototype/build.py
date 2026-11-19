@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Build the Gearsystem SG-1000 physics experiment from the user's ROM."""
+import argparse
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / 'port/sg1000'))
+import prepare_sonic
+
+# Pixel-height steps, each eight pixels wide. Stairs approximate slopes.
+HEIGHTS = [160] * 8 + [152, 144, 136, 128, 120] + [120] * 4 + [128, 136, 144, 152, 160] + [160] * 10
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--wla-z80', default='wla-z80')
+    p.add_argument('--wlalink', default='wlalink')
+    args = p.parse_args()
+    data = ROOT / 'src/data'
+    rom = ROOT / 'baserom/sonic1.sms'
+    out = ROOT / 'build/sg1000/prototype'
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        if not rom.exists():
+            raise ValueError('put the supported SMS ROM at baserom/sonic1.sms')
+        if not shutil.which(args.wla_z80) or not shutil.which(args.wlalink):
+            raise ValueError('WLA-DX tools wla-z80 and wlalink are required')
+        # Re-extract to validate the ROM and avoid stale/mismatched assets.
+        data.mkdir(parents=True, exist_ok=True)
+        subprocess.run([sys.executable, 'tools/rom_unpack.py', str(rom),
+                        'annot/sonic1.cfg', 'src/whole.asm'], cwd=ROOT,
+                       check=True, stdout=subprocess.DEVNULL)
+        prepare_sonic.prepare(data, out / 'sonic')
+        assert len(HEIGHTS) == 32 and all(h % 8 == 0 for h in HEIGHTS)
+        (out / 'heights.bin').write_bytes(bytes(HEIGHTS))
+        (out / 'ground.bin').write_bytes(bytes(
+            1 if y * 8 >= HEIGHTS[x] else 0
+            for y in range(24) for x in range(32)))
+        subprocess.run([args.wla_z80, '-o', str(out / 'prototype.o'),
+                        'port/sg1000/prototype/main.asm'], cwd=ROOT, check=True)
+        (out / 'prototype.lnk').write_text('[objects]\n' + str(out / 'prototype.o') + '\n')
+        (ROOT / 'out').mkdir(exist_ok=True)
+        subprocess.run([args.wlalink, '-r', str(out / 'prototype.lnk'),
+                        str(ROOT / 'out/sonic-physics.sg')], cwd=ROOT, check=True)
+        print('Built out/sonic-physics.sg')
+    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+        p.exit(1, 'build failed: {}\n'.format(exc))
+
+
+if __name__ == '__main__':
+    main()
