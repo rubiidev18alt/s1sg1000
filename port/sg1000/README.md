@@ -209,7 +209,7 @@ The Gearsystem test also builds a separate probe ROM to exercise the actual
 Z80 lookup routines. Set `WLA_Z80` and `WLALINK` if those tools are not on
 `PATH`, as well as `GEARSYSTEM_DIR` as usual.
 
-## Music and ring preparation (not yet in gameplay)
+## Rings and music preparation
 
 `python3 port/sg1000/prepare_audio_rings.py --rom baserom/sonic1.sms`
 validates the supported ROM and extracts the title and GHZ song streams, the
@@ -219,9 +219,16 @@ The original level stores rings as bits in 32×32 metatile IDs, not object
 placements; the extracted positions are the top-left of each 16×16 ring.
 The manifest includes the original four relative song-channel offsets.
 
-This is preparatory work only. The current ROM does not yet play music or
-sound effects, draw or collect rings, or display the ring counter. The SMS
-songs use all four PSG streams, so reserving a channel for sound effects will
-require a deliberate arrangement or adaptation; the raw streams are not a
-playable SG-1000 audio driver by themselves. Generated ROM-derived assets
+The prototype now includes four test-course rings and the 107 original GHZ1
+ring positions. The first original ring frame is converted to monochrome yellow
+background tiles, and the original two-digit ring HUD art is shown at the top
+left. Collected rings disappear and are tracked until reset or GHZ respawn;
+the counter wraps at 100 as on SMS, but the extra life is not implemented.
+Rings are static, not animated, and fully visible rings are drawn when the
+camera changes (partially clipped rings are not drawn).
+
+Music and sound remain preparatory work only: the current ROM does not yet
+play them. The SMS songs use all four PSG streams, so reserving a channel for
+sound effects requires a deliberate arrangement or adaptation; raw streams
+are not an SG-1000 audio driver by themselves. Generated ROM-derived assets
 remain ignored.

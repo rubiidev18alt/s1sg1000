@@ -89,7 +89,8 @@ int main(int argc, char** argv) {
     assert(vram2[0x2000] == 0x37); // green foreground, cyan background
     assert(button2.camera_x() == 21 && button2.camera_y() == 37);
     for (int i = 0; i < 32; ++i) {
-        assert(vram2[0x1800 + i] == 0);          // sky
+        if (i < 2 || (i > 3 && i != 5 && i != 6))
+            assert(vram2[0x1800 + i] == 0);      // sky outside HUD
         assert(vram2[0x1800 + 15 * 32 + i] == 1); // ground
     }
     // GHZ1 keeps the original hold-button-2 animation viewer; it does not
@@ -102,6 +103,30 @@ int main(int argc, char** argv) {
     button2.release(Key_Right);
     button2.release(Key_2);
     button2.frames(3);
+    // A real GHZ ring at (912,200) is rendered from the SMS metatile map.
+    button2.set_x(880);
+    button2.set_y(192);
+    button2.set_word(0xC004, 0);
+    button2.set_word(0xC006, 0);
+    button2.set_byte(0xC008, 0);
+    button2.frames(6);
+    int cam_pixels = 8 * (button2.camera_x() + 256 * button2.byte(0xC01E));
+    int sx = (912 - cam_pixels) / 8;
+    int sy = (200 - button2.camera_y() * 8) / 8;
+    assert(sx >= 0 && sx < 31 && sy >= 0 && sy < 23);
+    assert(vram2[0x1800 + sy * 32 + sx] == 32);
+    button2.set_x(900);
+    button2.set_y(192);
+    button2.set_word(0xC006, 0);
+    button2.frames(4);
+    assert(button2.byte(0xC03E) == 1);
+    assert(vram2[0x1805] == 40 && vram2[0x1806] == 42);
+    button2.frames(10);
+    assert(button2.byte(0xC03E) == 1); // already collected
+    cam_pixels = 8 * (button2.camera_x() + 256 * button2.byte(0xC01E));
+    sx = (912 - cam_pixels) / 8;
+    sy = (200 - button2.camera_y() * 8) / 8;
+    assert(vram2[0x1800 + sy * 32 + sx] == 0); // erased from map
     // The detached row-9 platform stays one-way. Start below its bottom,
     // pass through from below, then land on top.
     button2.set_x(900);
@@ -251,6 +276,18 @@ int main(int argc, char** argv) {
     button2.set_byte(0xC008, 0);
     button2.frames(50);
     assert(button2.x() == 256 && button2.y() == 368 && button2.grounded());
+    assert(button2.byte(0xC03E) == 0); // reset level resets rings
+    Simulation test_ring(argv[1]);
+    auto ring_vram = test_ring.core.GetVideo()->GetVRAM();
+    assert(test_ring.byte(0xC03E) == 0);
+    assert(ring_vram[0x1800 + 9 * 32 + 12] == 32); // ring at 96,176
+    test_ring.set_x(84);
+    test_ring.set_y(176);
+    test_ring.frames(6);
+    assert(test_ring.byte(0xC03E) == 1);
+    assert(ring_vram[0x1805] == 40 && ring_vram[0x1806] == 42);
+    test_ring.frames(20);
+    assert(test_ring.byte(0xC03E) == 1);
     Simulation s(argv[1]);
     assert(s.x() == 24 && s.y() == 176 && s.grounded());
     int start_camera_y = s.camera_y();

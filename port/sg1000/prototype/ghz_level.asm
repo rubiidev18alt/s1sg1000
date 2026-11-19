@@ -415,7 +415,8 @@ ghz_respawn:
   ld (yvel),a
   ld (yvel+1),a
   ld (rolling),a
-  jp ghz_init
+  call ghz_init
+  jp rings_init
 
 ; Tile-aligned camera with a 16-bit horizontal coordinate, necessary for
 ; the original 1024-tile-wide layout. The right camera limit uses the SMS
@@ -482,6 +483,10 @@ ghz_cam_y_ready:
   cp h
   ret z
 ghz_camera_changed:
+  push hl
+  ld a,1
+  ld (ring_redraw),a
+  pop hl
   ld a,l
   ld (camera_x),a
   ld a,h

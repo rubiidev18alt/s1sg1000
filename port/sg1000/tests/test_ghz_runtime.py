@@ -44,6 +44,22 @@ class RuntimeLayoutTest(unittest.TestCase):
                                    for x, t in enumerate(layout[y*256:(y+1)*256])])
         self.assertLess(len(encoded) + len(profiles), 1400)
 
+    def test_ring_buckets_cover_every_visible_position(self):
+        rom = ROOT / 'Sonic The Hedgehog (USA, Europe, Brazil) (En).sms'
+        if not rom.exists():
+            self.skipTest('user-supplied ROM absent')
+        rings, _, _ = mod.prepare_audio_rings.extract(rom.read_bytes())
+        rings.sort()
+        buckets = mod.ring_buckets(rings)
+        for camera_x in range(0, 6337, 8):
+            camera_page = camera_x // 256
+            start = buckets[max(camera_page - 1, 0)]
+            scan = [p for p in rings[start:] if p[0] // 256 <= camera_page + 2]
+            visible = [p for p in rings if camera_x <= p[0] <= camera_x + 240]
+            self.assertTrue(set(visible).issubset(scan), camera_x)
+        with self.assertRaises(ValueError):
+            mod.ring_buckets([(32, 0), (16, 0)])
+
     def test_visual_rows_match_original_silhouette(self):
         rom = ROOT / 'Sonic The Hedgehog (USA, Europe, Brazil) (En).sms'
         if not rom.exists():

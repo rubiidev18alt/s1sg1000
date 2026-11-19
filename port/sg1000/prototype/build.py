@@ -12,6 +12,8 @@ import prepare_sonic
 import layered_sonic
 import menu_font
 import prepare_ghz_layout
+import prepare_audio_rings
+import struct
 from itertools import groupby
 from collections import deque
 
@@ -94,6 +96,14 @@ def ghz_visual_rows(rom):
     return bytes(offsets) + b''.join(rows)
 
 
+def ring_buckets(rings):
+    """Index sorted GHZ rings by 256-pixel page for bounded runtime scans."""
+    if len(rings) > 255 or rings != sorted(rings):
+        raise ValueError('ring positions must be sorted and fit in one byte')
+    return bytes(next((i for i, (x, _) in enumerate(rings) if x >= page * 256), len(rings))
+                 for page in range(32))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--wla-z80', default='wla-z80')
@@ -113,7 +123,18 @@ def main():
         subprocess.run([sys.executable, 'tools/rom_unpack.py', str(rom),
                         'annot/sonic1.cfg', 'src/whole.asm'], cwd=ROOT,
                        check=True, stdout=subprocess.DEVNULL)
-        ghz_map, ghz_floor = ghz_runtime_data(rom.read_bytes())
+        rom_bytes = rom.read_bytes()
+        ghz_rings, _, _ = prepare_audio_rings.extract(rom_bytes)
+        ghz_rings.sort()
+        (out / 'ghz_ring_buckets.bin').write_bytes(ring_buckets(ghz_rings))
+        test_rings = [(96, 176), (112, 176), (160, 104), (352, 208)]
+        for name, rings in [('ghz', ghz_rings), ('test', test_rings)]:
+            (out / (name + '_rings.bin')).write_bytes(
+                b''.join(struct.pack('<HH', x, y) for x, y in rings))
+        ring_patterns, hud_patterns = prepare_audio_rings.ring_and_hud_art(rom_bytes)
+        (out / 'ring_patterns.bin').write_bytes(ring_patterns[:32])
+        (out / 'ring_hud_patterns.bin').write_bytes(hud_patterns)
+        ghz_map, ghz_floor = ghz_runtime_data(rom_bytes)
         (out / 'ghz_collision_rows.bin').write_bytes(ghz_map)
         (out / 'ghz_floor_profiles.bin').write_bytes(ghz_floor)
         (out / 'ghz_visual_rows.bin').write_bytes(ghz_visual_rows(rom.read_bytes()))

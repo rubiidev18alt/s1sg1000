@@ -58,6 +58,16 @@ ghz_probe_x dw
 ghz_probe_y dw
 ghz_sensor_index db
 debug_mode db
+ring_count db
+ring_bits dsb 14
+ring_ptr dw
+ring_index db
+ring_x dw
+ring_y dw
+ring_sx db
+ring_sy db
+ring_redraw db
+ring_cam_page db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -165,7 +175,9 @@ solid_tile:
   ld a,(menu_selection)
   or a
   call nz,ghz_init
+  call rings_init
   call update_camera
+  call rings_tick
   call draw_sonic
 main_loop:
   ; Poll vertical blank; status read acknowledges it. No interrupts required.
@@ -209,6 +221,7 @@ preview_frame:
   call animation_viewer
 frame_draw:
   call update_camera
+  call rings_tick
   call draw_sonic
   ld a,(controls)
   ld (previous_controls),a
@@ -975,6 +988,8 @@ camera_y_ready:
   cp b
   ret z
 camera_changed:
+  ld a,1
+  ld (ring_redraw),a
   ld a,c
   ld (camera_x),a
   ld a,b
@@ -1430,6 +1445,7 @@ sprite_left:
 
 
 .INCLUDE "port/sg1000/prototype/ghz_level.asm"
+.INCLUDE "port/sg1000/prototype/rings.asm"
 
 ; Graphics I, 16K VRAM, display disabled until menu setup completes.
 vdpregs:
@@ -1539,3 +1555,14 @@ ghz_visual_rows:
 ghz_visual_data:
 .INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 128
 
+
+ring_patterns:
+.INCBIN "build/sg1000/prototype/ring_patterns.bin"
+ring_hud_patterns:
+.INCBIN "build/sg1000/prototype/ring_hud_patterns.bin"
+test_rings:
+.INCBIN "build/sg1000/prototype/test_rings.bin"
+ghz_rings:
+.INCBIN "build/sg1000/prototype/ghz_rings.bin"
+ghz_ring_buckets:
+.INCBIN "build/sg1000/prototype/ghz_ring_buckets.bin"
