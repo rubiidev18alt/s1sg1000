@@ -73,10 +73,36 @@ def ghz_runtime_data(rom):
     return bytes(offsets) + b''.join(rows), floor[:23 * 32]
 
 
+def ghz_terrain_patterns(art):
+    """Reduce original SMS grass/soil tiles to two TMS Graphics I colours.
+
+    Tile 01 contains GHZ grass; tile 10 contains the checker/soil pattern.
+    A tile gets one fixed colour pair, so this is intentionally lossy.
+    """
+    raw = menu_font.decode_hy(art)
+    if len(raw) < 0x11 * 32:
+        raise ValueError('truncated GHZ art')
+    def convert(index, bright):
+        result = bytearray()
+        for y in range(8):
+            planes = raw[index * 32 + y * 4:index * 32 + y * 4 + 4]
+            row = 0
+            for x in range(8):
+                colour = sum(((planes[p] >> (7 - x)) & 1) << p for p in range(4))
+                row |= (colour in bright) << (7 - x)
+            result.append(row)
+        return bytes(result)
+    return convert(0x01, {5, 6}) + convert(0x10, {1})
+
+
 def ghz_visual_rows(rom):
-    """Pack the existing 8-pixel silhouette into random-access RLE rows."""
+    """Pack collision silhouettes with surface/soil into 11-bit RLE runs.
+
+    Two high bits select sky, solid terrain or grass. The occupancy is
+    unchanged; grass marks occupied cells with an empty cell directly above.
+    """
     _, layout, flags, floor, _ = prepare_ghz_layout.extract(rom)
-    rows = []
+    solid = []
     for y in range(64):
         cells = []
         for x in range(1024):
@@ -84,10 +110,15 @@ def ghz_visual_rows(rom):
             value = floor[kind * 32 + (x % 4) * 8 + 4]
             height = value if value < 128 else value - 256
             cells.append(int(value != 128 and (y % 4) * 8 + 4 >= height))
+        solid.append(cells)
+    rows = []
+    for y, cells in enumerate(solid):
+        types = [0 if not value else (2 if y == 0 or not solid[y - 1][x] else 1)
+                 for x, value in enumerate(cells)]
         packed = bytearray()
-        for value, group in groupby(cells):
-            packed.extend(sum(1 for _ in group).to_bytes(2, 'little'))
-            packed.append(value)
+        for value, group in groupby(types):
+            count = sum(1 for _ in group)
+            packed.extend((count | value << 11).to_bytes(2, 'little'))
         rows.append(bytes(packed))
     offsets = bytearray()
     cursor = 0
@@ -155,7 +186,9 @@ def main():
         ghz_map, ghz_floor = ghz_runtime_data(rom_bytes)
         (out / 'ghz_collision_rows.bin').write_bytes(ghz_map)
         (out / 'ghz_floor_profiles.bin').write_bytes(ghz_floor)
-        (out / 'ghz_visual_rows.bin').write_bytes(ghz_visual_rows(rom.read_bytes()))
+        (out / 'ghz_visual_rows.bin').write_bytes(ghz_visual_rows(rom_bytes))
+        (out / 'ghz_terrain_patterns.bin').write_bytes(
+            ghz_terrain_patterns((data / 'lv_ghz.art0000').read_bytes()))
         (out / 'menu_font.bin').write_bytes(menu_font.font_patterns(
             (data / 'world_map_1_ending.art0000').read_bytes()))
         prepare_sonic.prepare(data, out / 'sonic')

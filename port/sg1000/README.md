@@ -183,10 +183,12 @@ profiles to `build/sg1000/ghz1_layout/`. Offsets are signed bytes, with $80
 meaning no surface. The manifest records the original starting point and
 camera limits. The ROM is checked by SHA-256; generated data remains ignored.
 The GHZ1 menu option starts a second test level using the original
-8192×512 collision layout and original spawn position. A cyan background and
-green 8×8 silhouettes show the terrain. The graphics are generated from the
-collision profiles, not the original level art, so non-colliding scenery is
-not shown and slopes are visually approximated. Full-solid blocks stop Sonic
+8192×512 collision layout and original spawn position. A cyan background,
+two-green grass and brown soil/wall patterns show the terrain. The two 8×8
+patterns are reduced from the original SMS GHZ art, but placement follows the
+collision silhouette rather than the original graphics tilemap. This is an
+initial terrain-only approximation: non-colliding scenery is not shown, and
+slopes, grass edges and the checker texture are not yet faithful to the SMS. Full-solid blocks stop Sonic
 at their sides and undersides. Floor tiles connected to solid blocks also
 have solid undersides; detached platforms remain semisolid, so Sonic can jump
 through them from below. Connectedness is a prototype approximation, not
@@ -200,8 +202,8 @@ pixel-accurate floor offsets without storing the map in the SG-1000's 1 KiB
 RAM. The GHZ1 camera uses a 16-bit horizontal tile coordinate and follows both
 axes up to the original GHZ1 right camera limit, x=6336. Sonic is clamped
 at x=6559, just inside that camera boundary, rather than entering the unused
-end of the larger layout. A precomputed run-length-encoded silhouette allows
-the name table to be streamed much faster while preserving the same look.
+end of the larger layout. A precomputed run-length-encoded silhouette assigns
+grass to exposed upper surfaces and soil to other solid cells.
 A Gearsystem movement test recorded 120 simulation updates in 120 video
 frames in the starting area; this is not a guarantee for every situation.
 The 8-pixel redraw may still tear, and movement remains provisional rather

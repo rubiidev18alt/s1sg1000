@@ -77,6 +77,7 @@ sprite_cached_index db
 ring_hud_cached_count db
 ring_anim_frame db
 ring_anim_timer db
+ghz_draw_value db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -1514,6 +1515,8 @@ ghz_visual_rows:
 .INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 0 READ 128
 ghz_visual_data:
 .INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 128
+ghz_terrain_patterns:
+.INCBIN "build/sg1000/prototype/ghz_terrain_patterns.bin"
 
 
 ring_patterns:

@@ -25,6 +25,24 @@ ghz_init:
   out ($BF),a
   ld a,$87
   out ($BF),a
+  ; GHZ-only Graphics I tile groups: source-derived grass in two greens,
+  ; checker soil/walls in brown. These do not change the collision map.
+  ld hl,$4200
+  call vdp_addr
+  ld hl,ghz_terrain_patterns
+  ld bc,8
+  call vdp_copy
+  ld hl,$4240
+  call vdp_addr
+  ld hl,ghz_terrain_patterns+8
+  ld bc,8
+  call vdp_copy
+  ld hl,$6008
+  call vdp_addr
+  ld a,$32
+  out ($BE),a
+  ld a,$A6
+  out ($BE),a
   ret
 
 ghz_x_limit:
@@ -495,7 +513,7 @@ ghz_camera_changed:
   ld (camera_y),a
   jp ghz_draw_map
 
-; Each source row is RLE-compressed as (16-bit count, tile value) runs.
+; Each source row is RLE-compressed as an 11-bit count and two-bit tile type.
 ; Skip camera_x cells and stream just 32 cells per row to the name table.
 ; This retains exactly the previous 8-pixel silhouette without repeated
 ; metatile lookups or per-cell multiplications.
@@ -524,18 +542,14 @@ ghz_draw_row:
   ld a,(camera_x_hi)
   ld d,a
 ghz_skip_run:
-  ld c,(hl)
-  inc hl
-  ld b,(hl)
-  inc hl
-  push hl                ; pointer to run value
+  call ghz_read_run
+  push hl                ; pointer to next run
   ex de,hl               ; skip count
   or a
   sbc hl,bc
   jr c,ghz_found_run
   ex de,hl               ; remaining skip count
   pop hl
-  inc hl                 ; next run
   jr ghz_skip_run
 ghz_found_run:
   ; BC = length minus skipped tiles (negate the negative subtraction).
@@ -545,11 +559,11 @@ ghz_found_run:
   ld a,0
   sbc a,h
   ld b,a
-  pop hl                 ; run value
+  pop hl                 ; next run
   ld e,32                ; screen cells left
 ghz_output_run:
-  ld d,(hl)
-  inc hl
+  ld a,(ghz_draw_value)
+  ld d,a
   ld a,b
   or a
   jr nz,ghz_output_last_run
@@ -564,10 +578,7 @@ ghz_output_partial:
   ld a,d
   out ($BE),a
   djnz ghz_output_partial
-  ld c,(hl)
-  inc hl
-  ld b,(hl)
-  inc hl
+  call ghz_read_run
   jr ghz_output_run
 ghz_output_last_run:
   ld b,e
@@ -580,4 +591,27 @@ ghz_output_final:
   ld (ghz_screen_row),a
   cp 24
   jp c,ghz_draw_row
+  ret
+
+; HL points to packed run, returns BC=count and preserves DE.
+ghz_read_run:
+  ld c,(hl)
+  inc hl
+  ld a,(hl)
+  inc hl
+  push af
+  and 7
+  ld b,a
+  pop af
+  rrca
+  rrca
+  rrca
+  and 3
+  jr z,ghz_run_value_ready
+  dec a
+  ld a,72                 ; checker soil and walls
+  jr z,ghz_run_value_ready
+  ld a,64                 ; two-green grass surface
+ghz_run_value_ready:
+  ld (ghz_draw_value),a
   ret

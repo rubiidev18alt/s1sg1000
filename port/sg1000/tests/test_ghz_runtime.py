@@ -69,6 +69,17 @@ class RuntimeLayoutTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             mod.ring_buckets([(32, 0), (16, 0)])
 
+    def test_ghz_terrain_patterns_use_original_art(self):
+        art = ROOT / 'src/data/lv_ghz.art0000'
+        if not art.exists():
+            self.skipTest('unpacked SMS art absent')
+        patterns = mod.ghz_terrain_patterns(art.read_bytes())
+        self.assertEqual(len(patterns), 16)
+        self.assertEqual(patterns[:8], bytes([0x11, 0x33, 0xaa, 0xaa, 0xaa, 0x44, 0x44, 0x44]))
+        self.assertEqual(patterns[8:], bytes([0x77, 0x77, 0x22, 0x22, 0, 0, 0, 0]))
+        with self.assertRaises(ValueError):
+            mod.ghz_terrain_patterns(b'')
+
     def test_visual_rows_match_original_silhouette(self):
         rom = ROOT / 'Sonic The Hedgehog (USA, Europe, Brazil) (En).sms'
         if not rom.exists():
@@ -76,20 +87,27 @@ class RuntimeLayoutTest(unittest.TestCase):
         data = rom.read_bytes()
         _, layout, flags, floor, _ = mod.prepare_ghz_layout.extract(data)
         encoded = mod.ghz_visual_rows(data)
+        previous = [0] * 1024
         for y in range(64):
             pos = 128 + int.from_bytes(encoded[2*y:2*y+2], 'little')
             actual = []
             while len(actual) < 1024:
-                count = int.from_bytes(encoded[pos:pos+2], 'little')
-                actual.extend([encoded[pos+2]] * count)
-                pos += 3
+                run = int.from_bytes(encoded[pos:pos+2], 'little')
+                count, tile_type = run & 0x7ff, run >> 11
+                self.assertIn(tile_type, (0, 1, 2))
+                self.assertGreater(count, 0)
+                actual.extend([tile_type] * count)
+                pos += 2
             expected = []
             for x in range(1024):
                 kind = flags[layout[(y//4)*256 + x//4]] & 63
                 value = floor[kind*32 + (x%4)*8 + 4]
                 height = value if value < 128 else value - 256
                 expected.append(int(value != 128 and (y%4)*8 + 4 >= height))
-            self.assertEqual(actual, expected)
+            self.assertEqual([int(tile != 0) for tile in actual], expected)
+            self.assertEqual(actual, [0 if not solid else (2 if not previous[x] else 1)
+                                      for x, solid in enumerate(expected)])
+            previous = expected
 
 
 if __name__ == '__main__':

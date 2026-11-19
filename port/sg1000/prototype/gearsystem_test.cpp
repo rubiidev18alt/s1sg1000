@@ -147,12 +147,18 @@ int main(int argc, char** argv) {
     assert(button2.byte(0xC01A) == 1); // GHZ1 selected
     assert(button2.x() == 256 && button2.y() == 368 && button2.grounded());
     assert(vram2[0x2000] == 0x37); // green foreground, cyan background
+    assert(vram2[0x2008] == 0x32 && vram2[0x2009] == 0xA6); // grass and soil
     assert(vram2[0x2004] == 0xA7); // yellow rings and matching HUD icon
+    const u8 grass_pattern[] = {0x11, 0x33, 0xAA, 0xAA, 0xAA, 0x44, 0x44, 0x44};
+    for (int i = 0; i < 8; ++i) assert(vram2[0x200 + i] == grass_pattern[i]);
+    int grass_tiles = 0;
+    for (int i = 0; i < 768; ++i) grass_tiles += (vram2[0x1800 + i] == 64);
+    assert(grass_tiles > 0);
     assert(button2.camera_x() == 21 && button2.camera_y() == 37);
     for (int i = 0; i < 32; ++i) {
         if (i < 2 || (i > 3 && i != 5 && i != 6))
             assert(vram2[0x1800 + i] == 0);      // sky outside HUD
-        assert(vram2[0x1800 + 15 * 32 + i] == 1); // ground
+        assert(vram2[0x1800 + 15 * 32 + i] == 72); // textured ground
     }
     // GHZ debug toggles once, flies through terrain, clamps to GHZ bounds,
     // and resumes normal gravity on exit. The viewer uses both buttons.
