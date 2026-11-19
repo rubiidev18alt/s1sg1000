@@ -56,6 +56,7 @@ test_draw_row db
 ghz_buffer dsb 9
 ghz_probe_x dw
 ghz_probe_y dw
+ghz_sensor_index db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0

@@ -106,6 +106,40 @@ int main(int argc, char** argv) {
     }
     assert(passed_upward && min_y < 368);
     assert(button2.y() == 368 && button2.grounded());
+    // The centre can be off a platform while a foot still overlaps it.
+    // At row 9 the platform ends at x=992; x=981 has a foot over it.
+    button2.set_x(981);
+    button2.set_y(260);
+    button2.set_word(0xC004, 0);
+    button2.set_word(0xC006, 0);
+    button2.set_byte(0xC008, 0);
+    button2.frames(60);
+    assert(button2.y() == 272 && button2.grounded());
+    // Also test the right foot at the opposite platform edge, x=896.
+    button2.set_x(878);
+    button2.set_y(260);
+    button2.set_word(0xC006, 0);
+    button2.set_byte(0xC008, 0);
+    button2.frames(60);
+    assert(button2.y() == 272 && button2.grounded());
+    // With both feet beyond the edge, Sonic must still fall.
+    button2.set_x(993);
+    button2.set_y(260);
+    button2.set_word(0xC006, 0);
+    button2.set_byte(0xC008, 0);
+    button2.frames(45);
+    assert(button2.y() > 272);
+    // A shallow overlap with a solid wall must not slip past the probes.
+    button2.set_x(454);
+    button2.set_y(357);
+    button2.set_word(0xC004, 0x0300);
+    button2.set_word(0xC006, 0);
+    button2.set_byte(0xC008, 0);
+    button2.press(Key_Right);
+    button2.frames(2);
+    assert(button2.x() == 456 && button2.vx() == 0);
+    button2.release(Key_Right);
+    button2.frames(3);
     // Profile 22 is a solid block: it stops side and underside crossings.
     // Row 12, column 15 is solid, with empty space immediately to its left.
     button2.set_x(454);
@@ -137,6 +171,15 @@ int main(int argc, char** argv) {
     button2.set_byte(0xC008, 0);
     button2.frames(4);
     assert(button2.y() >= 448 && static_cast<short>(button2.word(0xC006)) >= 0);
+    // The leftmost three sprite pixels overlap a solid ceiling; neither
+    // inset ceiling probe should be able to miss that overlap.
+    button2.set_x(797);
+    button2.set_y(418);
+    button2.set_word(0xC004, 0);
+    button2.set_word(0xC006, 0xFC80);
+    button2.set_byte(0xC008, 0);
+    button2.frames(3);
+    assert(button2.y() >= 416 && static_cast<short>(button2.word(0xC006)) >= 0);
     // Return to the start platform for the movement rate measurement.
     button2.set_x(256);
     button2.set_y(368);

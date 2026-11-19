@@ -73,14 +73,12 @@ ghz_wall_probe_ready:
   ld l,a
   ld a,(ypage)
   ld h,a
-  ld de,8
-  add hl,de
   ld (ghz_probe_y),hl
   call ghz_collision_at
   cp 22
   jr z,ghz_wall_block
   ld hl,(ghz_probe_y)
-  ld de,16
+  ld de,31
   add hl,de
   ld (ghz_probe_y),hl
   call ghz_collision_at
@@ -173,14 +171,12 @@ ghz_ceiling:
   ld l,a
   ld a,(xpage)
   ld h,a
-  ld de,4
-  add hl,de
   ld (ghz_probe_x),hl
   call ghz_collision_at
   cp 22
   jr z,ghz_ceiling_block
   ld hl,(ghz_probe_x)
-  ld de,15
+  ld de,23
   add hl,de
   ld (ghz_probe_x),hl
   call ghz_collision_at
@@ -223,6 +219,9 @@ ghz_landing:
   cp 2
   jp nc,ghz_respawn
   call ghz_save_current_feet
+  xor a
+  ld (ghz_sensor_index),a
+ghz_scan_sensor:
   ; Look at the current 32px cell and its neighbours, because SMS slope
   ; profiles can point beyond their containing cell.
   ld hl,(ghz_feet)
@@ -250,7 +249,15 @@ ghz_collision_loop:
   ld l,a
   ld a,(xpage)
   ld h,a
-  ld bc,12
+  ld a,(ghz_sensor_index)
+  ld e,a
+  ld d,0
+  push hl
+  ld hl,ghz_foot_offsets
+  add hl,de
+  ld c,(hl)
+  ld b,0
+  pop hl
   add hl,bc
   ld a,l
   and 31
@@ -266,6 +273,8 @@ ghz_collision_loop:
   srl h
   rr l
   ld e,l
+  ld a,(ghz_row)
+  ld d,a
   call ghz_collision_type
   ld b,a
   ld a,(ghz_xoffset)
@@ -343,9 +352,18 @@ ghz_next_row:
   dec a
   ld (ghz_count),a
   jp nz,ghz_collision_loop
+  ld a,(ghz_sensor_index)
+  inc a
+  ld (ghz_sensor_index),a
+  cp 3
+  jp c,ghz_scan_sensor
   xor a
   ld (grounded),a
   ret
+
+; Centre first; if unsupported, try inset left and right foot sensors.
+ghz_foot_offsets:
+.db 12,4,19
 
 ghz_save_current_feet:
   ld a,(ypos+1)

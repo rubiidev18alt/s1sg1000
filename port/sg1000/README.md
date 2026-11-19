@@ -97,7 +97,8 @@ Grounded roll braking follows the original opposite-direction input behavior.
 The downhill friction exemption applies only to TEST and is a prototype
 approximation, not a port of the SMS slope acceleration system. TEST uses a
 simple centre-point height lookup with 8-pixel steps. GHZ1 uses the original
-floor profiles. Original solid-block profile 22 also blocks both sides and
+floor profiles with centre and inset foot sensors to bridge missed contacts
+at platform edges. Original solid-block profile 22 also blocks both sides and
 the underside; other floor profiles remain one-way. Wall and ceiling probes
 are approximate, and there are no moving platforms or original level objects.
 There is no complete SMS slope and rolling physics or sound.
