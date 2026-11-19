@@ -154,3 +154,14 @@ The sandbox's walk and roll animation phases now advance with horizontal
 speed, based on the SMS code; run, jump and skid also use the corresponding
 SMS frame sequences. The prototype physics and frame timings are still not a
 complete or cycle-exact port.
+
+## GHZ1 layout preparation (data only)
+
+`python3 port/sg1000/prepare_ghz_layout.py --rom baserom/sonic1.sms`
+extracts the supported SMS revision's 256×16 layout of 32-pixel metatiles
+(8192×512 pixels), tile flags, and 32-column floor and ceiling collision
+profiles to `build/sg1000/ghz1_layout/`. Offsets are signed bytes, with $80
+meaning no surface. The manifest records the original starting point and
+camera limits. The ROM is checked by SHA-256; generated data remains ignored.
+This is preparation only: GHZ1 is still locked and the prototype does not yet
+render this layout or implement its collision or semisolid objects.
