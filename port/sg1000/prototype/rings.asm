@@ -6,6 +6,8 @@ rings_init:
   xor a
   ld (ring_count),a
   ld (ring_redraw),a
+  ld (ring_anim_frame),a
+  ld (ring_anim_timer),a
   ld a,(menu_selection)
   or a
   jr nz,rings_clear_start
@@ -24,10 +26,15 @@ rings_clear:
   ld hl,ring_patterns
   ld bc,32
   call vdp_copy
-  ld hl,$4140                 ; patterns 40..63: original digits and emblem
+  ld hl,$4140                 ; patterns 40..59: white digits
   call vdp_addr
   ld hl,ring_hud_patterns
-  ld bc,192
+  ld bc,160
+  call vdp_copy
+  ld hl,$4120                 ; patterns 36..39: yellow ring emblem
+  call vdp_addr
+  ld hl,ring_hud_patterns+160
+  ld bc,32
   call vdp_copy
   ld hl,$6004                 ; character groups 32..63
   call vdp_addr
@@ -302,19 +309,54 @@ ring_draw:
   out ($BE),a
   ret
 
+; Advance all ring tiles together; the original six frames are shared across
+; every ring, so no name-table redraw is needed on an animation tick.
+ring_animate:
+  ld a,(ring_anim_timer)
+  inc a
+  cp 8
+  jr nc,ring_animate_next
+  ld (ring_anim_timer),a
+  ret
+ring_animate_next:
+  xor a
+  ld (ring_anim_timer),a
+  ld a,(ring_anim_frame)
+  inc a
+  cp 6
+  jr c,ring_animate_frame_ready
+  xor a
+ring_animate_frame_ready:
+  ld (ring_anim_frame),a
+  ld l,a
+  ld h,0
+  add hl,hl
+  add hl,hl
+  add hl,hl
+  add hl,hl
+  add hl,hl
+  ld de,ring_patterns
+  add hl,de
+  push hl
+  ld hl,$4100
+  call vdp_addr
+  pop hl
+  ld bc,32
+  jp vdp_copy
+
 ; SMS ring emblem and two 8x16 digits; adapt sprite art to name-table tiles.
 ring_draw_hud:
   ld hl,$5802
   call vdp_addr
-  ld a,60
+  ld a,36
   out ($BE),a
-  ld a,62
+  ld a,38
   out ($BE),a
   ld hl,$5822
   call vdp_addr
-  ld a,61
+  ld a,37
   out ($BE),a
-  ld a,63
+  ld a,39
   out ($BE),a
   ld a,(ring_count)
   and $F0

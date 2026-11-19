@@ -150,7 +150,7 @@ def main():
             (out / (name + '_rings.bin')).write_bytes(
                 b''.join(struct.pack('<HH', x, y) for x, y in rings))
         ring_patterns, hud_patterns = prepare_audio_rings.ring_and_hud_art(rom_bytes)
-        (out / 'ring_patterns.bin').write_bytes(ring_patterns[:32])
+        (out / 'ring_patterns.bin').write_bytes(ring_patterns)
         (out / 'ring_hud_patterns.bin').write_bytes(hud_patterns)
         ghz_map, ghz_floor = ghz_runtime_data(rom_bytes)
         (out / 'ghz_collision_rows.bin').write_bytes(ghz_map)

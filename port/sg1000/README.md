@@ -222,12 +222,11 @@ placements; the extracted positions are the top-left of each 16×16 ring.
 The manifest includes the original four relative song-channel offsets.
 
 The prototype now includes four test-course rings and the 107 original GHZ1
-ring positions. The first original ring frame is converted to monochrome yellow
-background tiles, and the original two-digit ring HUD art is shown at the top
-left. Collected rings disappear and are tracked until reset or GHZ respawn;
+ring positions. All six original ring frames animate as monochrome yellow
+background tiles. The original ring HUD icon uses the same yellow, while the
+two-digit counter is white. Collected rings disappear and are tracked until reset or GHZ respawn;
 the counter wraps at 100 as on SMS, but the extra life is not implemented.
-Rings are static, not animated, and fully visible rings are drawn when the
-camera changes (partially clipped rings are not drawn).
+Fully visible rings are drawn when the camera changes (partially clipped rings are not drawn).
 
 The prototype plays jump, roll, brake, and ring pickup sound effects using
 PSG tone channel 2 only. Their note lengths, pitch sweeps, repeated notes and

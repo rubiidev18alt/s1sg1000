@@ -147,6 +147,7 @@ int main(int argc, char** argv) {
     assert(button2.byte(0xC01A) == 1); // GHZ1 selected
     assert(button2.x() == 256 && button2.y() == 368 && button2.grounded());
     assert(vram2[0x2000] == 0x37); // green foreground, cyan background
+    assert(vram2[0x2004] == 0xA7); // yellow rings and matching HUD icon
     assert(button2.camera_x() == 21 && button2.camera_y() == 37);
     for (int i = 0; i < 32; ++i) {
         if (i < 2 || (i > 3 && i != 5 && i != 6))
@@ -369,6 +370,15 @@ int main(int argc, char** argv) {
     assert(button2.byte(0xC03E) == 0); // reset level resets rings
     Simulation test_ring(argv[1]);
     auto ring_vram = test_ring.core.GetVideo()->GetVRAM();
+    assert(ring_vram[0x2004] == 0xA1); // rings and HUD icon share yellow group
+    assert(ring_vram[0x1802] == 36 && ring_vram[0x1803] == 38);
+    std::vector<u8> first_ring(ring_vram + 0x100, ring_vram + 0x120);
+    test_ring.frames(8);
+    bool changed = false;
+    for (int i = 0; i < 32; ++i) changed |= first_ring[i] != ring_vram[0x100 + i];
+    assert(changed);
+    test_ring.frames(40);
+    for (int i = 0; i < 32; ++i) assert(first_ring[i] == ring_vram[0x100 + i]);
     assert(test_ring.byte(0xC03E) == 0);
     assert(ring_vram[0x1800 + 9 * 32 + 12] == 32); // ring at 96,176
     test_ring.set_x(84);
@@ -449,7 +459,7 @@ int main(int argc, char** argv) {
     assert(cache_vram[0x1802] == 0x7e);
     cache.set_byte(0xC03E, 1);
     cache.frames(1);
-    assert(cache_vram[0x1802] == 60 && cache_vram[0x1806] == 42);
+    assert(cache_vram[0x1802] == 36 && cache_vram[0x1806] == 42);
     cache.press(Key_1);
     cache.frames(3);
     assert(cache_vram[0x3800] != (old_pattern ^ 0xff));

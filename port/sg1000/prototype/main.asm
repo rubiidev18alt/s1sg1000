@@ -75,6 +75,8 @@ music_ch1 dsb 6
 music_ch3 dsb 3
 sprite_cached_index db
 ring_hud_cached_count db
+ring_anim_frame db
+ring_anim_timer db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -230,6 +232,7 @@ preview_frame:
 frame_draw:
   call update_camera
   call rings_tick
+  call ring_animate
   call draw_sonic
   ; Keep PSG's SG-1000 wait states out of the VRAM update path.
   call music_tick
