@@ -100,7 +100,9 @@ simple centre-point height lookup with 8-pixel steps. GHZ1 uses the original
 floor profiles, but all surfaces currently use one-way, centre-point collision:
 there are no solid walls, ceilings, moving platforms, or original level objects.
 There is no complete SMS slope and rolling physics or sound.
-The camera follows horizontally and vertically in 8-pixel increments; the
+In both levels the camera is offset 16 pixels to the right of its original
+prototype position, giving more view ahead. The camera follows horizontally
+and vertically in 8-pixel increments; the
 TMS9918 does not support smooth hardware scrolling, and redraws may tear.
 Sprite colours and animation timing are approximate. There are no enemies or complete levels.
 

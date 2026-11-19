@@ -1,4 +1,6 @@
 ; SG-1000 Sonic movement sandbox, WLA-DX. All motion values are 8.8 fixed point.
+; Keep Sonic 16 pixels further left on screen to show more terrain ahead.
+.DEFINE CAMERA_FOLLOW_X 88
 .MEMORYMAP
   DEFAULTSLOT 0
   SLOTSIZE $8000
@@ -792,7 +794,7 @@ update_camera:
   ld l,a
   ld a,(xpage)
   ld h,a
-  ld de,104
+  ld de,CAMERA_FOLLOW_X
   or a
   sbc hl,de
   jr nc,camera_x_nonnegative

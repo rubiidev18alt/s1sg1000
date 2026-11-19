@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     assert(button2.byte(0xC01A) == 1); // GHZ1 selected
     assert(button2.x() == 256 && button2.y() == 368 && button2.grounded());
     assert(vram2[0x2000] == 0x37); // green foreground, cyan background
-    assert(button2.camera_x() == 19 && button2.camera_y() == 37);
+    assert(button2.camera_x() == 21 && button2.camera_y() == 37);
     for (int i = 0; i < 32; ++i) {
         assert(vram2[0x1800 + i] == 0);          // sky
         assert(vram2[0x1800 + 15 * 32 + i] == 1); // ground
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
     s.press(Key_Right);
     s.frames(60);
     assert(s.x() == 133 && s.y() == 120 && s.vx() == 0x300 && s.grounded());
-    assert(s.camera_x() > 0 && s.camera_y() < start_camera_y);
+    assert(s.camera_x() == (s.x() - 88) / 8 && s.camera_y() < start_camera_y);
     s.frames(30);
     assert(s.x() == 223 && s.y() == 112 && s.grounded());
     s.frames(300);
