@@ -165,3 +165,17 @@ meaning no surface. The manifest records the original starting point and
 camera limits. The ROM is checked by SHA-256; generated data remains ignored.
 This is preparation only: GHZ1 is still locked and the prototype does not yet
 render this layout or implement its collision or semisolid objects.
+
+The prototype build now packs GHZ1's original collision-profile IDs into
+row-indexed runs in the SG-1000 ROM, along with the floor profiles used by
+that layout. Z80 lookup routines can read any of the 256×16 metatiles and
+its pixel-accurate floor offset without holding the map in the SG-1000's
+1 KiB RAM. This is groundwork only: those routines are not yet connected to
+gameplay, and they do not implement platform objects or horizontal/ceiling
+collision. GHZ1 remains locked; TEST and its camera are unchanged. The next
+runtime work needs a wider horizontal camera, terrain rendering, collision,
+and one-way platform handling before GHZ1 can be unlocked.
+
+The Gearsystem test also builds a separate probe ROM to exercise the actual
+Z80 lookup routines. Set `WLA_Z80` and `WLALINK` if those tools are not on
+`PATH`, as well as `GEARSYSTEM_DIR` as usual.

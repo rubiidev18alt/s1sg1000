@@ -137,6 +137,9 @@ solid_tile:
   call vdp_addr
   ld a,$D0
   out ($BE),a
+.IFDEF GHZ_PROBE
+  jp ghz_probe
+.ENDIF
   call zone_menu
   call update_camera
   call draw_sonic
@@ -665,6 +668,89 @@ roll_read_next_floor:
   ret
 not_downhill:
   xor a
+  ret
+
+.IFDEF GHZ_PROBE
+; Emulator-only test harness. Input row/column/x offset at C030-C032,
+; result type and floor offset at C033-C034.
+ghz_probe:
+  ld a,($C030)
+  ld d,a
+  ld a,($C031)
+  ld e,a
+  call ghz_collision_type
+  ld ($C033),a
+  ld b,a
+  ld a,($C032)
+  ld c,a
+  ld a,b
+  call ghz_floor_offset
+  ld ($C034),a
+  jp ghz_probe
+.ENDIF
+
+ ; GHZ1 collision building blocks; not yet called by the TEST physics.
+; Input D=metatile row 0..15, E=metatile column 0..255.
+; Return A=original collision profile ID, clobber BC/DE/HL.
+ghz_collision_type:
+  ld a,d
+  cp 16
+  jr c,ghz_row_valid
+  xor a
+  ret
+ghz_row_valid:
+  add a,a
+  ld l,a
+  ld h,0
+  ld bc,ghz_collision_rows
+  add hl,bc
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  ld hl,ghz_collision_row_data
+  add hl,bc
+  ld a,e
+ghz_find_run:
+  ld b,(hl)              ; count 0 encodes the entire 256-column row
+  inc hl
+  ld c,(hl)              ; physics profile
+  inc hl
+  ld d,a
+  ld a,b
+  or a
+  jr z,ghz_run_found
+  ld a,d
+  sub b
+  jr nc,ghz_find_run
+ghz_run_found:
+  ld a,c
+  ret
+
+; Input A=profile 0..22, C=world x within metatile 0..31.
+; Return A=signed surface offset relative to metatile top; $80 = none.
+; Offsets may be negative or greater than 31, as in the SMS tables.
+; Clobbers BC/DE/HL.
+ghz_floor_offset:
+  cp 23
+  jr c,ghz_profile_valid
+  ld a,$80
+  ret
+ghz_profile_valid:
+  ld l,a
+  ld h,0
+  add hl,hl
+  add hl,hl
+  add hl,hl
+  add hl,hl
+  add hl,hl
+  ld a,c
+  and 31
+  ld e,a
+  ld d,0
+  add hl,de
+  ld de,ghz_floor_profiles
+  add hl,de
+  ld a,(hl)
   ret
 
 ; Camera coordinates are in 8-pixel tiles. The 9918 has no fine-scroll
@@ -1255,3 +1341,11 @@ frame_ptrs:
 .dw frame_data + 21912
 frame_data:
 .INCBIN "build/sg1000/prototype/sonic_frames.bin"
+; Compact original GHZ1 physics data. Map rows use count/type pairs.
+ghz_collision_rows:
+.INCBIN "build/sg1000/prototype/ghz_collision_rows.bin" SKIP 0 READ 32
+ghz_collision_row_data:
+.INCBIN "build/sg1000/prototype/ghz_collision_rows.bin" SKIP 32
+ghz_floor_profiles:
+.INCBIN "build/sg1000/prototype/ghz_floor_profiles.bin"
+
