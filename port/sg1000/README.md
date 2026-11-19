@@ -108,7 +108,7 @@ at platform edges. Full-solid blocks stop motion from either side, and floor
 tiles connected to solid terrain also block upward motion. Detached platforms
 remain one-way. Wall and ceiling probes are approximate, and there are no
 moving platforms or original level objects.
-There is no complete SMS slope and rolling physics or sound.
+There is no complete SMS slope and rolling physics or music yet.
 In both levels the camera is offset 16 pixels to the right of its original
 prototype position, giving more view ahead. The camera follows horizontally
 and vertically in 8-pixel increments; the
@@ -227,8 +227,11 @@ the counter wraps at 100 as on SMS, but the extra life is not implemented.
 Rings are static, not animated, and fully visible rings are drawn when the
 camera changes (partially clipped rings are not drawn).
 
-Music and sound remain preparatory work only: the current ROM does not yet
-play them. The SMS songs use all four PSG streams, so reserving a channel for
-sound effects requires a deliberate arrangement or adaptation; raw streams
-are not an SG-1000 audio driver by themselves. Generated ROM-derived assets
-remain ignored.
+The prototype plays preliminary jump, roll, brake, and ring pickup sound
+effects using PSG tone channel 2 only. Their notes are taken from the SMS
+sound data, but timing, looping, vibrato, and envelopes are simplified. Other
+Sonic sounds and music are not yet implemented. TEST has no background music.
+The SMS songs use all four PSG streams, so reserving a channel for sound
+effects requires an arrangement or adaptation; raw streams are not an
+SG-1000 audio driver by themselves. Generated ROM-derived assets remain
+ignored.

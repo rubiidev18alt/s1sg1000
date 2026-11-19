@@ -169,6 +169,7 @@ rings_read_y:
   add a,1
   daa                         ; SMS counter is two-digit BCD
   ld (ring_count),a
+  call sfx_ring
   ; Force redraw so the collected background-ring is erased.
   ld a,$FF
   ld (camera_x),a

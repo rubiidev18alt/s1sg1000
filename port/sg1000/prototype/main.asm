@@ -68,6 +68,8 @@ ring_sx db
 ring_sy db
 ring_redraw db
 ring_cam_page db
+sfx_ptr dw
+sfx_timer db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -82,6 +84,7 @@ init:
   di
   im 1
   ld sp,$C3F0
+  call sfx_init
   xor a
   ld (xvel),a
   ld (xvel+1),a
@@ -222,6 +225,7 @@ preview_frame:
 frame_draw:
   call update_camera
   call rings_tick
+  call sfx_tick
   call draw_sonic
   ld a,(controls)
   ld (previous_controls),a
@@ -457,6 +461,7 @@ physics_x:
 enter_roll:
   ld a,1
   ld (rolling),a
+  call sfx_roll
 roll_physics:
   ; On the SMS (01:535B-53A4), pressing opposite with down released
   ; exits the grounded roll and applies normal braking. Same-direction input
@@ -677,6 +682,7 @@ jump_not_rolling:
   ld (grounded),a
   ld a,16
   ld (jump_timer),a
+  call sfx_jump
 hold_jump:
   ld hl,$FC80             ; -3.5 px/frame, held for up to 16 ticks
   ld (yvel),hl
@@ -1177,6 +1183,9 @@ brake_was_positive:
   xor a
   ld (facing),a
 brake_animation:
+  ld a,(anim_mode)
+  cp 5
+  call nz,sfx_brake
   ; The SMS braking table alternates 13 and 25 at eight ticks per frame.
   ld a,5
   call anim_select_mode
@@ -1446,6 +1455,7 @@ sprite_left:
 
 .INCLUDE "port/sg1000/prototype/ghz_level.asm"
 .INCLUDE "port/sg1000/prototype/rings.asm"
+.INCLUDE "port/sg1000/prototype/sfx.asm"
 
 ; Graphics I, 16K VRAM, display disabled until menu setup completes.
 vdpregs:

@@ -1,6 +1,7 @@
 // Optional integration test against a local Gearsystem source checkout.
 #include "GearsystemCore.h"
 #include "Memory.h"
+#include "Audio.h"
 #include <cassert>
 #include <cstdio>
 #include <vector>
@@ -285,9 +286,46 @@ int main(int argc, char** argv) {
     test_ring.set_y(176);
     test_ring.frames(6);
     assert(test_ring.byte(0xC03E) == 1);
+    auto ring_audio = test_ring.core.GetAudio()->GetPSG()->GetState();
+    assert(ring_audio.channels[2].volume_reg < 15);
+    for (int channel : {0, 1, 3}) assert(ring_audio.channels[channel].volume_reg == 15);
     assert(ring_vram[0x1805] == 40 && ring_vram[0x1806] == 42);
     test_ring.frames(20);
     assert(test_ring.byte(0xC03E) == 1);
+    Simulation wrap_ring(argv[1]);
+    wrap_ring.set_byte(0xC03E, 0x99);
+    wrap_ring.set_x(84);
+    wrap_ring.set_y(176);
+    wrap_ring.frames(6);
+    assert(wrap_ring.byte(0xC03E) == 0); // SMS BCD counter wraps at 100
+    // Sound effects occupy only PSG tone 2. TEST has no background music.
+    Simulation sound(argv[1]);
+    auto psg = sound.core.GetAudio()->GetPSG();
+    auto state = psg->GetState();
+    for (int channel = 0; channel < 4; ++channel)
+        assert(state.channels[channel].volume_reg == 15);
+    sound.press(Key_1);
+    sound.frames(1);
+    state = psg->GetState();
+    assert(state.channels[2].volume_reg < 15);
+    assert(state.channels[2].period == 320 * 16); // SMS jump's first pitch
+    for (int channel : {0, 1, 3}) assert(state.channels[channel].volume_reg == 15);
+    sound.frames(5);
+    state = psg->GetState();
+    assert(state.channels[2].period == 239 * 16);
+    sound.release(Key_1);
+    sound.frames(30);
+    assert(psg->GetState().channels[2].volume_reg == 15);
+    Simulation sound_roll(argv[1]);
+    sound_roll.set_word(0xC004, 0x0200);
+    sound_roll.press(Key_Down);
+    sound_roll.frames(1);
+    assert(sound_roll.core.GetAudio()->GetPSG()->GetState().channels[2].period == 56 * 16);
+    Simulation sound_brake(argv[1]);
+    sound_brake.set_word(0xC004, 0x0200);
+    sound_brake.press(Key_Left);
+    sound_brake.frames(1);
+    assert(sound_brake.core.GetAudio()->GetPSG()->GetState().channels[2].period == 134 * 16);
     Simulation s(argv[1]);
     assert(s.x() == 24 && s.y() == 176 && s.grounded());
     int start_camera_y = s.camera_y();
