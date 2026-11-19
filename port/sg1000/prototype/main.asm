@@ -152,6 +152,66 @@ vdp_copy:
   ret
 
 physics_x:
+  ; Down while grounded and moving enters a persistent roll.
+  ld a,(rolling)
+  or a
+  jr nz,roll_physics
+  ld a,(grounded)
+  or a
+  jr z,normal_movement
+  ld a,(controls)
+  bit 1,a
+  jr z,normal_movement
+  ld hl,(xvel)
+  bit 7,h
+  jr z,roll_check_speed
+  xor a
+  sub l
+  ld l,a
+  ld a,0
+  sbc a,h
+  ld h,a
+roll_check_speed:
+  ld a,h
+  or a
+  jr nz,enter_roll
+  ld a,l
+  cp $80
+  jr c,normal_movement
+enter_roll:
+  ld a,1
+  ld (rolling),a
+roll_physics:
+  ; No regular acceleration or steering while rolling. The height table
+  ; indicates whether the next 8-pixel column is downhill in travel direction.
+  call rolling_downhill
+  or a
+  jr nz,roll_maintain_speed
+  ld hl,(xvel)
+  bit 7,h
+  jr nz,roll_slow_left
+  ld de,$0010
+  or a
+  sbc hl,de
+  jr c,roll_stop
+  ld a,h
+  or l
+  jr z,roll_stop
+  jp save_vx
+roll_slow_left:
+  ld de,$0010
+  add hl,de
+  bit 7,h
+  jp nz,save_vx
+roll_stop:
+  xor a
+  ld (rolling),a
+  ld hl,0
+  jp save_vx
+roll_maintain_speed:
+  ld hl,(xvel)
+  jp save_vx
+normal_movement:
   ld a,(controls)
   bit 3,a                 ; right has priority when both are held
   jr nz,move_right
@@ -298,6 +358,7 @@ jump_pressed:
   ld a,1
   ld (jump_latch),a
   xor a
+  ld (rolling),a
   ld (grounded),a
   ld a,16
   ld (jump_timer),a
@@ -395,6 +456,67 @@ get_floor:
   ld c,(hl)
   inc hl
   ld b,(hl)
+  ret
+
+; Return A=1 when the next terrain column in the direction of travel is
+; lower (a larger Y value). Flat and uphill return 0. Clamped at world edges.
+rolling_downhill:
+  ld a,(xpos+1)
+  ld l,a
+  ld a,(xpage)
+  ld h,a
+  ld de,12
+  add hl,de
+  srl h
+  rr l
+  srl h
+  rr l
+  srl h
+  rr l
+  ld a,l
+  ld d,a
+  ld a,(xvel+1)
+  bit 7,a
+  jr nz,roll_check_left_edge
+  ld a,d
+  cp 95
+  jr nc,not_downhill
+  jr roll_fetch_floor
+roll_check_left_edge:
+  ld a,d
+  or a
+  jr z,not_downhill
+roll_fetch_floor:
+  add hl,hl
+  ld de,heights
+  add hl,de
+  ld c,(hl)
+  inc hl
+  ld b,(hl)
+  ld a,(xvel+1)
+  bit 7,a
+  jr nz,roll_read_left_floor
+  inc hl
+  jr roll_read_next_floor
+roll_read_left_floor:
+  dec hl
+  dec hl
+  dec hl
+roll_read_next_floor:
+  ld e,(hl)
+  inc hl
+  ld d,(hl)
+  ex de,hl
+  or a
+  sbc hl,bc
+  jr c,not_downhill
+  ld a,h
+  or l
+  jr z,not_downhill
+  ld a,1
+  ret
+not_downhill:
+  xor a
   ret
 
 ; Camera coordinates are in 8-pixel tiles. The 9918 has no fine-scroll
@@ -497,6 +619,12 @@ animate:
   ld a,(grounded)
   or a
   jr z,anim_air
+  ld a,(rolling)
+  or a
+  jr z,anim_not_rolling
+  call reset_idle
+  jp anim_spin
+anim_not_rolling:
   ld hl,(xvel)
   ld a,h
   or l

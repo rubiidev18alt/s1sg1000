@@ -68,7 +68,9 @@ no playable game or sound/physics code is produced by this step.
 
 The separate prototype builds a 32 KiB SG-1000 ROM with a black background,
 a 768-pixel-wide white test course with multiple stepped hills. Move with left/right; button 1 jumps.
-Holding button 1 produces a higher jump. Reset the emulator to restart. Run it
+Holding button 1 produces a higher jump. Press down while moving to roll;
+rolling slows on flat or uphill ground, but retains speed downhill. It ends
+when Sonic stops or jumps. Reset the emulator to restart. Run it
 in Gearsystem's SG-1000 mode (the `.sg` extension should select it; force
 SG-1000 if needed). NTSC timing is the reference.
 
@@ -88,7 +90,7 @@ movement engine. Acceleration ($10), braking ($30), coasting ($08), maximum
 normal horizontal speed ($0300), jump velocity ($FC80), jump hold (16 frames),
 and gravity ($38) are based on the SMS disassembly. Floor collision is a
 simple centre-point height lookup with 8-pixel steps, not the original slopes,
-rolling physics, wall collision, inertia or level objects. It has no sound.
+full SMS slope and rolling physics, wall collision, inertia or level objects. It has no sound.
 The camera follows horizontally and vertically in 8-pixel increments; the
 TMS9918 does not support smooth hardware scrolling, and redraws may tear.
 Sprite colours and animation timing are approximate. There are no enemies or complete levels.
@@ -103,7 +105,7 @@ GEARSYSTEM_DIR=/path/to/Gearsystem port/sg1000/prototype/test_gearsystem.sh
 ```
 
 The emulator test covers acceleration, reversal, edge limits, both camera axes, hills, jump
-height, landing, and animation preview; it does not establish cycle-accurate SMS physics.
+height, landing, animation preview, rolling friction and both downhill directions; it does not establish cycle-accurate SMS physics.
 
 ### Sprite and animation experiment
 

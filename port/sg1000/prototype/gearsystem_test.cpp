@@ -28,6 +28,10 @@ struct Simulation {
         return m->Retrieve(addr) | (m->Retrieve(addr + 1) << 8);
     }
     int byte(int addr) { return core.GetMemory()->Retrieve(addr); }
+    void set_byte(int addr, int value) { core.GetMemory()->Load(addr, value & 255); }
+    void set_word(int addr, int value) { set_byte(addr, value); set_byte(addr + 1, value >> 8); }
+    void set_x(int value) { set_word(0xC000, (value & 255) << 8); set_byte(0xC011, value >> 8); }
+    void set_y(int value) { set_word(0xC002, (value & 255) << 8); set_byte(0xC012, value >> 8); }
     int x() { return (word(0xC000) >> 8) + 256 * byte(0xC011); }
     int y() { return (word(0xC002) >> 8) + 256 * byte(0xC012); }
     int camera_x() { return byte(0xC013); }
@@ -111,6 +115,48 @@ int main(int argc, char** argv) {
     idle.release(Key_Down);
     idle.frames(3);
     assert(idle.byte(0xC00D) == 0x06);
+    // Down while moving starts a ground roll. On flat ground it loses speed
+    // and stays rolling after down is released, then returns to standing.
+    Simulation roll(argv[1]);
+    roll.press(Key_Right);
+    roll.frames(12);
+    roll.press(Key_Down);
+    roll.release(Key_Right);
+    roll.frames(2);
+    assert(roll.grounded() && roll.byte(0xC015) == 1);
+    assert(roll.byte(0xC00D) >= 8 && roll.byte(0xC00D) <= 11);
+    int roll_speed = roll.vx();
+    roll.release(Key_Down);
+    roll.frames(2);
+    assert(roll.byte(0xC015) == 1 && roll.vx() < roll_speed);
+    roll.frames(100);
+    assert(roll.vx() == 0 && roll.byte(0xC015) == 0);
+
+    // Set up rolls on both downward slopes; speed must not decrease.
+    Simulation downhill_right(argv[1]);
+    downhill_right.set_x(244); // centre in column 32, falling to the right
+    downhill_right.set_y(136);
+    downhill_right.set_word(0xC004, 0x0200);
+    downhill_right.set_byte(0xC015, 1);
+    downhill_right.frames(2);
+    assert(downhill_right.vx() == 0x0200 && downhill_right.byte(0xC015));
+    Simulation downhill_left(argv[1]);
+    downhill_left.set_x(116); // centre in column 16, falling to the left
+    downhill_left.set_y(136);
+    downhill_left.set_word(0xC004, -0x0200);
+    downhill_left.set_byte(0xC015, 1);
+    downhill_left.frames(2);
+    assert(downhill_left.vx() == -0x0200 && downhill_left.byte(0xC015));
+    Simulation uphill(argv[1]);
+    uphill.set_x(116);
+    uphill.set_y(136);
+    uphill.set_word(0xC004, 0x0200);
+    uphill.set_byte(0xC015, 1);
+    uphill.frames(2);
+    assert(uphill.vx() < 0x0200 && uphill.byte(0xC015));
+    uphill.press(Key_1);
+    uphill.frames(2);
+    assert(!uphill.grounded() && uphill.byte(0xC015) == 0);
     Simulation viewer(argv[1]);
     viewer.press(Key_2);
     viewer.press(Key_Right);
