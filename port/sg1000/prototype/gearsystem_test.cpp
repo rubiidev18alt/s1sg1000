@@ -58,8 +58,8 @@ int main(int argc, char** argv) {
     const u8 option[] = {2, 0, 15, 11, 12, 15};
     for (int i = 0; i < 11; ++i) assert(vram[0x190A + i] == title[i]);
     for (int i = 0; i < 6; ++i) assert(vram[0x198D + i] == option[i]);
-    const u8 ghz[] = {0, 0, 16, 17, 8, 18, 0, 13, 9, 14, 19, 11, 20};
-    for (int i = 0; i < 13; ++i) assert(vram[0x19CD + i] == ghz[i]);
+    const u8 ghz[] = {0, 0, 16, 17, 8, 18};
+    for (int i = 0; i < 6; ++i) assert(vram[0x19CD + i] == ghz[i]);
     assert(vram[0x1B00] == 0xD0);
     menu.press(Key_Right);
     menu.frames(5);
@@ -83,18 +83,44 @@ int main(int argc, char** argv) {
     button2.press(Key_1);
     button2.frames(3);
     button2.release(Key_1);
-    button2.frames(3);
-    assert(vram2[0x19CD] == 2 && vram2[0x190A] == 8); // GHZ1 locked
-    button2.press(Key_2);
-    button2.frames(2);
-    button2.release(Key_2);
-    button2.frames(2);
-    assert(vram2[0x198D] == 2 && vram2[0x19CD] == 0);
-    button2.press(Key_1);
-    button2.frames(2);
-    button2.release(Key_1);
-    button2.frames(5);
-    assert(button2.grounded() && button2.y() == 176 && button2.byte(0xC00D) == 6);
+    button2.frames(40);
+    assert(button2.byte(0xC01A) == 1); // GHZ1 selected
+    assert(button2.x() == 256 && button2.y() == 368 && button2.grounded());
+    assert(vram2[0x2000] == 0x37); // green foreground, cyan background
+    assert(button2.camera_x() == 19 && button2.camera_y() == 37);
+    for (int i = 0; i < 32; ++i) {
+        assert(vram2[0x1800 + i] == 0);          // sky
+        assert(vram2[0x1800 + 15 * 32 + i] == 1); // ground
+    }
+    // Start below the original start platform, travel up through it, then
+    // land on its top on the way down (one-way collision).
+    button2.set_y(380);
+    button2.set_word(0xC006, 0xFC80);
+    button2.set_byte(0xC008, 0);
+    int min_y = 1000;
+    bool passed_upward = false;
+    for (int i = 0; i < 150; ++i) {
+        button2.frames(1);
+        if (button2.y() < min_y) min_y = button2.y();
+        passed_upward |= button2.y() < 368 && !button2.grounded();
+    }
+    assert(passed_upward && min_y < 368);
+    assert(button2.y() == 368 && button2.grounded());
+    button2.press(Key_Right);
+    button2.frames(120);
+    button2.release(Key_Right);
+    button2.frames(10);
+    assert(button2.x() > 270);
+    // Far beyond TEST's 768px world and beyond the old 8-bit camera range.
+    button2.set_x(3000);
+    button2.frames(20);
+    assert(button2.x() >= 2990);
+    assert(button2.byte(0xC01E) > 0); // high byte of tile camera x
+    button2.set_y(511);
+    button2.set_word(0xC006, 0x0100);
+    button2.set_byte(0xC008, 0);
+    button2.frames(50);
+    assert(button2.x() == 256 && button2.y() == 368 && button2.grounded());
     Simulation s(argv[1]);
     assert(s.x() == 24 && s.y() == 176 && s.grounded());
     int start_camera_y = s.camera_y();

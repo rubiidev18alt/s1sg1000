@@ -67,6 +67,15 @@ def main():
         ghz_map, ghz_floor = ghz_runtime_data(rom.read_bytes())
         (out / 'ghz_collision_rows.bin').write_bytes(ghz_map)
         (out / 'ghz_floor_profiles.bin').write_bytes(ghz_floor)
+        # Coarse monochrome silhouette, sampled at the centre of each 8x8 cell.
+        tiles = bytearray()
+        for kind in range(23):
+            for y in range(4):
+                for x in range(4):
+                    value = ghz_floor[kind * 32 + x * 8 + 4]
+                    height = value if value < 128 else value - 256
+                    tiles.append(int(value != 128 and y * 8 + 4 >= height))
+        (out / 'ghz_tiles.bin').write_bytes(tiles)
         (out / 'menu_font.bin').write_bytes(menu_font.font_patterns(
             (data / 'world_map_1_ending.art0000').read_bytes()))
         prepare_sonic.prepare(data, out / 'sonic')

@@ -38,6 +38,19 @@ menu_selection db
 anim_mode db
 anim_phase db
 anim_subframe db
+camera_x_hi db
+ghz_old_feet dw
+ghz_feet dw
+ghz_surface dw
+ghz_row db
+ghz_count db
+ghz_xoffset db
+ghz_render_y db
+ghz_render_x dw
+ghz_screen_row db
+ghz_screen_col db
+ghz_last_row db
+ghz_buffer dsb 9
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -141,6 +154,9 @@ solid_tile:
   jp ghz_probe
 .ENDIF
   call zone_menu
+  ld a,(menu_selection)
+  or a
+  call nz,ghz_init
   call update_camera
   call draw_sonic
 main_loop:
@@ -185,7 +201,7 @@ vdp_copy:
   ret
 
 ; TEST is initially selected; button 2 toggles selection. Button 1 enters
-; TEST only. Require release before and after confirmation to avoid jumping.
+; the selected level. Require release before and after confirmation to avoid jumping.
 zone_menu:
   ld hl,$590A             ; row 8, column 10
   call vdp_addr
@@ -200,7 +216,7 @@ zone_menu:
   ld hl,$59CD             ; row 14, column 13
   call vdp_addr
   ld hl,menu_ghz1
-  ld bc,13
+  ld bc,6
   call vdp_copy
   ; Do not enable display until every VDP register and menu tile is ready.
   ld a,$C2
@@ -226,9 +242,6 @@ menu_wait_input:
   call nz,menu_toggle
   bit 4,c
   jr z,menu_wait_input
-  ld a,(menu_selection)
-  or a
-  jr nz,menu_wait_input   ; GHZ1 is deliberately not playable yet
 menu_wait_release:
   call menu_poll
   and $30
@@ -273,7 +286,7 @@ menu_title:
 menu_test:
 .db 2,0,15,11,12,15               ; > TEST
 menu_ghz1:
-.db 0,0,16,17,8,18,0,13,9,14,19,11,20 ;   GHZ1 LOCKED
+.db 0,0,16,17,8,18               ;   GHZ1
 menu_arrow:
 .db $00,$40,$60,$70,$60,$40,$00,$00
 menu_font_patterns:
@@ -454,6 +467,9 @@ x_integrate_negative:
   cp $FF
   jr z,left_edge
 check_right_limit:
+  ld a,(menu_selection)
+  or a
+  jp nz,ghz_x_limit
   ; Sprite's left edge is limited to world x=744 (768 - 24).
   ld a,(xpage)
   cp 2
@@ -481,6 +497,9 @@ right_edge:
   ret
 
 physics_y:
+  ld a,(menu_selection)
+  or a
+  call nz,ghz_save_old_feet
   ; Release latch permits a new jump after landing.
   ld a,(controls)
   bit 4,a
@@ -523,7 +542,7 @@ hold_jump:
  gravity:
   ld a,(grounded)
   or a
-  jr nz,follow_floor
+  jp nz,grounded_follow_dispatch
   ld hl,(yvel)
   ld de,$0038
   add hl,de
@@ -556,6 +575,9 @@ move_y:
   adc a,$FF
   ld (ypage),a
 check_landing:
+  ld a,(menu_selection)
+  or a
+  jp nz,ghz_landing
   ; Only land while descending; stand on the floor at Sonic's centre.
   ld hl,(yvel)
   bit 7,h
@@ -570,6 +592,10 @@ check_landing:
   or a
   sbc hl,bc
   ret c
+grounded_follow_dispatch:
+  ld a,(menu_selection)
+  or a
+  jp nz,ghz_landing
 follow_floor:
   call get_floor
   ld h,b
@@ -612,6 +638,9 @@ get_floor:
 ; Return A=1 when the next terrain column in the direction of travel is
 ; lower (a larger Y value). Flat and uphill return 0. Clamped at world edges.
 rolling_downhill:
+  ld a,(menu_selection)
+  or a
+  jp nz,not_downhill
   ld a,(xpos+1)
   ld l,a
   ld a,(xpage)
@@ -689,7 +718,7 @@ ghz_probe:
   jp ghz_probe
 .ENDIF
 
- ; GHZ1 collision building blocks; not yet called by the TEST physics.
+; GHZ1 collision building blocks; TEST keeps its original physics.
 ; Input D=metatile row 0..15, E=metatile column 0..255.
 ; Return A=original collision profile ID, clobber BC/DE/HL.
 ghz_collision_type:
@@ -756,6 +785,9 @@ ghz_profile_valid:
 ; Camera coordinates are in 8-pixel tiles. The 9918 has no fine-scroll
 ; register; redraw the name table only when a tile boundary is crossed.
 update_camera:
+  ld a,(menu_selection)
+  or a
+  jp nz,ghz_camera
   ld a,(xpos+1)
   ld l,a
   ld a,(xpage)
@@ -1247,6 +1279,8 @@ sprite_left:
   ret
 
 
+.INCLUDE "port/sg1000/prototype/ghz_level.asm"
+
 ; Graphics I, 16K VRAM, display disabled until menu setup completes.
 vdpregs:
 .db $00,$82,$06,$80,$00,$36,$07,$01
@@ -1348,4 +1382,6 @@ ghz_collision_row_data:
 .INCBIN "build/sg1000/prototype/ghz_collision_rows.bin" SKIP 32
 ghz_floor_profiles:
 .INCBIN "build/sg1000/prototype/ghz_floor_profiles.bin"
+ghz_tiles:
+.INCBIN "build/sg1000/prototype/ghz_tiles.bin"
 

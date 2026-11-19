@@ -72,7 +72,7 @@ Holding button 1 produces a higher jump. Press down while moving to roll;
 rolling slows on flat or uphill ground, but retains speed downhill. Release
 down and press against the direction of travel to unroll and brake; the roll
 also ends when Sonic stops or jumps. Reset the emulator to restart. At the ZONE SELECT menu, tap button 2 to switch between TEST and GHZ1;
-press and release button 1 to enter TEST. GHZ1 is selectable but locked.
+press and release button 1 to enter either test level.
 The menu font is extracted from the SMS world-map art and reduced to white
 foreground pixels. Run it
 in Gearsystem's SG-1000 mode (the `.sg` extension should select it; force
@@ -94,10 +94,12 @@ movement engine. Acceleration ($10), braking ($30), coasting ($08), maximum
 normal horizontal speed ($0300), jump velocity ($FC80), jump hold (16 frames),
 gravity ($38), and flat rolling drag ($04) are based on the SMS disassembly.
 Grounded roll braking follows the original opposite-direction input behavior.
-The downhill friction exemption is a prototype approximation, not a port of
-the SMS slope acceleration and collision system. Floor collision is a
-simple centre-point height lookup with 8-pixel steps, not the original slopes,
-full SMS slope and rolling physics, wall collision, inertia or level objects. It has no sound.
+The downhill friction exemption applies only to TEST and is a prototype
+approximation, not a port of the SMS slope acceleration system. TEST uses a
+simple centre-point height lookup with 8-pixel steps. GHZ1 uses the original
+floor profiles, but all surfaces currently use one-way, centre-point collision:
+there are no solid walls, ceilings, moving platforms, or original level objects.
+There is no complete SMS slope and rolling physics or sound.
 The camera follows horizontally and vertically in 8-pixel increments; the
 TMS9918 does not support smooth hardware scrolling, and redraws may tear.
 Sprite colours and animation timing are approximate. There are no enemies or complete levels.
@@ -148,14 +150,14 @@ This is a first-pass conversion: the single-colour tiles lose detail, and
 animation timing, sprite limits, enemy behavior, collision, palettes for other
 zones, and runtime integration are not implemented. In particular, the
 prototype's two-layer Sonic already uses the TMS four-sprites-per-scanline
-budget. GHZ1 remains locked and the current ROM does not load these assets.
+budget. The GHZ1 test level does not load these enemy assets.
 
 The sandbox's walk and roll animation phases now advance with horizontal
 speed, based on the SMS code; run, jump and skid also use the corresponding
 SMS frame sequences. The prototype physics and frame timings are still not a
 complete or cycle-exact port.
 
-## GHZ1 layout preparation (data only)
+## GHZ1 layout and test level
 
 `python3 port/sg1000/prepare_ghz_layout.py --rom baserom/sonic1.sms`
 extracts the supported SMS revision's 256×16 layout of 32-pixel metatiles
@@ -163,18 +165,22 @@ extracts the supported SMS revision's 256×16 layout of 32-pixel metatiles
 profiles to `build/sg1000/ghz1_layout/`. Offsets are signed bytes, with $80
 meaning no surface. The manifest records the original starting point and
 camera limits. The ROM is checked by SHA-256; generated data remains ignored.
-This is preparation only: GHZ1 is still locked and the prototype does not yet
-render this layout or implement its collision or semisolid objects.
+The GHZ1 menu option starts a second test level using the original
+8192×512 collision layout and original spawn position. A cyan background and
+green 8×8 silhouettes show the terrain. The graphics are generated from the
+collision profiles, not the original level art, so non-colliding scenery is
+not shown and slopes are visually approximated. All terrain surfaces act as
+semisolids: Sonic can pass through from below and land on top; full solid
+walls, ceilings and original moving platform objects are not yet implemented.
+Falling below the map respawns Sonic. No enemies or other objects are present.
 
-The prototype build now packs GHZ1's original collision-profile IDs into
-row-indexed runs in the SG-1000 ROM, along with the floor profiles used by
-that layout. Z80 lookup routines can read any of the 256×16 metatiles and
-its pixel-accurate floor offset without holding the map in the SG-1000's
-1 KiB RAM. This is groundwork only: those routines are not yet connected to
-gameplay, and they do not implement platform objects or horizontal/ceiling
-collision. GHZ1 remains locked; TEST and its camera are unchanged. The next
-runtime work needs a wider horizontal camera, terrain rendering, collision,
-and one-way platform handling before GHZ1 can be unlocked.
+The prototype packs the collision-profile IDs into row-indexed runs, with the
+floor profiles used by the layout. Z80 routines read the metatiles and their
+pixel-accurate floor offsets without storing the map in the SG-1000's 1 KiB
+RAM. The GHZ1 camera uses a 16-bit horizontal tile coordinate and follows both
+axes across the full map; it still redraws in 8-pixel increments rather than
+smoothly scrolling. The redraw can tear or slow down gameplay, and collision
+and movement remain provisional rather than faithful SMS physics.
 
 The Gearsystem test also builds a separate probe ROM to exercise the actual
 Z80 lookup routines. Set `WLA_Z80` and `WLALINK` if those tools are not on
