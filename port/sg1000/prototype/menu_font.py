@@ -4,7 +4,8 @@ import struct
 # The original level-select strings in mods/compress/lselect.inc identify the
 # character indices. Z is $3F in the same world-map font.
 GLYPHS = {'Z': 0x3F, 'O': 0x52, 'N': 0x51, 'E': 0x44,
-          'S': 0x70, 'L': 0x43, 'C': 0x36, 'T': 0x80}
+          'S': 0x70, 'L': 0x43, 'C': 0x36, 'T': 0x80,
+          'G': 0x46, 'H': 0x47, '1': 0xF1, 'K': 0x42, 'D': 0x37}
 
 
 def decode_hy(art):

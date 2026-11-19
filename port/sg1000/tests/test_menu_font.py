@@ -21,4 +21,4 @@ class MenuFontTest(unittest.TestCase):
     def test_known_font_codepoints(self):
         self.assertEqual(menu_font.GLYPHS['Z'], 0x3f)
         self.assertEqual(menu_font.GLYPHS['T'], 0x80)
-        self.assertEqual(set(menu_font.GLYPHS), set('ZONESELECT'))
+        self.assertEqual(set(menu_font.GLYPHS), set('ZONESELECTGH1KD'))

@@ -58,6 +58,8 @@ int main(int argc, char** argv) {
     const u8 option[] = {2, 0, 15, 11, 12, 15};
     for (int i = 0; i < 11; ++i) assert(vram[0x190A + i] == title[i]);
     for (int i = 0; i < 6; ++i) assert(vram[0x198D + i] == option[i]);
+    const u8 ghz[] = {0, 0, 16, 17, 8, 18, 0, 13, 9, 14, 19, 11, 20};
+    for (int i = 0; i < 13; ++i) assert(vram[0x19CD + i] == ghz[i]);
     assert(vram[0x1B00] == 0xD0);
     menu.press(Key_Right);
     menu.frames(5);
@@ -70,9 +72,27 @@ int main(int argc, char** argv) {
     menu.frames(4);
     assert(vram[0x190A] != 8 && menu.grounded() && menu.y() == 176);
     Simulation button2(argv[1], false);
+    auto vram2 = button2.core.GetVideo()->GetVRAM();
+    button2.press(Key_2);
+    button2.frames(3);
+    assert(vram2[0x198D] == 0 && vram2[0x19CD] == 2);
+    button2.frames(10); // Held button must not repeatedly toggle.
+    assert(vram2[0x19CD] == 2);
+    button2.release(Key_2);
+    button2.frames(2);
+    button2.press(Key_1);
+    button2.frames(3);
+    button2.release(Key_1);
+    button2.frames(3);
+    assert(vram2[0x19CD] == 2 && vram2[0x190A] == 8); // GHZ1 locked
     button2.press(Key_2);
     button2.frames(2);
     button2.release(Key_2);
+    button2.frames(2);
+    assert(vram2[0x198D] == 2 && vram2[0x19CD] == 0);
+    button2.press(Key_1);
+    button2.frames(2);
+    button2.release(Key_1);
     button2.frames(5);
     assert(button2.grounded() && button2.y() == 176 && button2.byte(0xC00D) == 6);
     Simulation s(argv[1]);

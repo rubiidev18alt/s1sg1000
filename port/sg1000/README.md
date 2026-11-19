@@ -71,7 +71,8 @@ a 768-pixel-wide white test course with multiple stepped hills. Move with left/r
 Holding button 1 produces a higher jump. Press down while moving to roll;
 rolling slows on flat or uphill ground, but retains speed downhill. Release
 down and press against the direction of travel to unroll and brake; the roll
-also ends when Sonic stops or jumps. Reset the emulator to restart. At the ZONE SELECT menu, press and release button 1 or 2 to enter TEST.
+also ends when Sonic stops or jumps. Reset the emulator to restart. At the ZONE SELECT menu, tap button 2 to switch between TEST and GHZ1;
+press and release button 1 to enter TEST. GHZ1 is selectable but locked.
 The menu font is extracted from the SMS world-map art and reduced to white
 foreground pixels. Run it
 in Gearsystem's SG-1000 mode (the `.sg` extension should select it; force
@@ -123,3 +124,6 @@ All 42 frame indices are included for both directions. Walking, jumping,
 looking, braking and idle use selected frames; other game actions are not
 implemented. To inspect all frames, hold button 2 and tap left/right. Releasing
 button 2 resumes the sandbox; the preview does not advance physics.
+
+The waiting animation starts after 360 idle frames, following the SMS bored
+frame sequence and its loop point. Other animation timing remains approximate.

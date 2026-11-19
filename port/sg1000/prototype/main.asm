@@ -34,6 +34,7 @@ idle_timer db
 idle_phase db
 sprite_draw_y db
 idle_timer_hi db
+menu_selection db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -65,6 +66,7 @@ init:
   ld (idle_timer),a
   ld (idle_timer_hi),a
   ld (idle_phase),a
+  ld (menu_selection),a
   ld a,$FF
   ld (camera_x),a
   ld (camera_y),a
@@ -112,11 +114,12 @@ solid_tile:
   ld a,$F1
   out ($BE),a              ; characters 0-7
   out ($BE),a              ; characters 8-15
+  out ($BE),a              ; characters 16-23
   ; Upload the original SMS world-map glyphs, reduced to white pixels.
   ld hl,$4040             ; character 8
   call vdp_addr
   ld hl,menu_font_patterns
-  ld bc,64
+  ld bc,104
   call vdp_copy
   ld hl,$4010             ; character 2: selection arrow
   call vdp_addr
@@ -172,8 +175,8 @@ vdp_copy:
   jr nz,vdp_copy
   ret
 
-; Single choice menu. Require a fresh button press and release so choosing
-; with button 1 cannot cause a jump (or button 2 start the frame viewer).
+; TEST is initially selected; button 2 toggles selection. Button 1 enters
+; TEST only. Require release before and after confirmation to avoid jumping.
 zone_menu:
   ld hl,$590A             ; row 8, column 10
   call vdp_addr
@@ -185,6 +188,11 @@ zone_menu:
   ld hl,menu_test
   ld bc,6
   call vdp_copy
+  ld hl,$59CD             ; row 14, column 13
+  call vdp_addr
+  ld hl,menu_ghz1
+  ld bc,13
+  call vdp_copy
   ; Do not enable display until every VDP register and menu tile is ready.
   ld a,$C2
   out ($BF),a
@@ -194,15 +202,55 @@ menu_wait_initial_release:
   call menu_poll
   and $30
   jr nz,menu_wait_initial_release
-menu_wait_press:
+  xor a
+  ld (previous_controls),a
+menu_wait_input:
   call menu_poll
-  and $30
-  jr z,menu_wait_press
+  ld b,a
+  ld a,(previous_controls)
+  cpl
+  and b                   ; rising button edges only
+  ld c,a
+  ld a,b
+  ld (previous_controls),a
+  bit 5,c
+  call nz,menu_toggle
+  bit 4,c
+  jr z,menu_wait_input
+  ld a,(menu_selection)
+  or a
+  jr nz,menu_wait_input   ; GHZ1 is deliberately not playable yet
 menu_wait_release:
   call menu_poll
   and $30
   jr nz,menu_wait_release
+  xor a
+  ld (previous_controls),a
   ret
+menu_toggle:
+  ld a,(menu_selection)
+  xor 1
+  ld (menu_selection),a
+  ld hl,$598D
+  call vdp_addr
+  ld a,(menu_selection)
+  or a
+  ld a,0
+  jr nz,menu_write_test_arrow
+  ld a,2
+menu_write_test_arrow:
+  out ($BE),a
+  ld hl,$59CD
+  call vdp_addr
+  ld a,(menu_selection)
+  or a
+  ld a,0
+  jr z,menu_write_ghz_arrow
+  ld a,2
+menu_write_ghz_arrow:
+  out ($BE),a
+  ret
+
 menu_poll:
   in a,($BF)
   and $80
@@ -215,6 +263,8 @@ menu_title:
 .db 8,9,10,11,0,12,11,13,11,14,15 ; ZONE SELECT
 menu_test:
 .db 2,0,15,11,12,15               ; > TEST
+menu_ghz1:
+.db 0,0,16,17,8,18,0,13,9,14,19,11,20 ;   GHZ1 LOCKED
 menu_arrow:
 .db $00,$40,$60,$70,$60,$40,$00,$00
 menu_font_patterns:
