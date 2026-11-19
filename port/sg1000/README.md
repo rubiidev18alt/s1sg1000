@@ -69,8 +69,9 @@ no playable game or sound/physics code is produced by this step.
 The separate prototype builds a 32 KiB SG-1000 ROM with a black background,
 a 768-pixel-wide white test course with multiple stepped hills. Move with left/right; button 1 jumps.
 Holding button 1 produces a higher jump. Press down while moving to roll;
-rolling slows on flat or uphill ground, but retains speed downhill. It ends
-when Sonic stops or jumps. Reset the emulator to restart. At the ZONE SELECT menu, press and release button 1 or 2 to enter TEST.
+rolling slows on flat or uphill ground, but retains speed downhill. Release
+down and press against the direction of travel to unroll and brake; the roll
+also ends when Sonic stops or jumps. Reset the emulator to restart. At the ZONE SELECT menu, press and release button 1 or 2 to enter TEST.
 The menu font is extracted from the SMS world-map art and reduced to white
 foreground pixels. Run it
 in Gearsystem's SG-1000 mode (the `.sg` extension should select it; force
@@ -90,7 +91,10 @@ Custom assembler paths can be supplied with `--wla-z80` and `--wlalink`.
 This is a **physics experiment**, not a direct port of Sonic's complete
 movement engine. Acceleration ($10), braking ($30), coasting ($08), maximum
 normal horizontal speed ($0300), jump velocity ($FC80), jump hold (16 frames),
-and gravity ($38) are based on the SMS disassembly. Floor collision is a
+gravity ($38), and flat rolling drag ($04) are based on the SMS disassembly.
+Grounded roll braking follows the original opposite-direction input behavior.
+The downhill friction exemption is a prototype approximation, not a port of
+the SMS slope acceleration and collision system. Floor collision is a
 simple centre-point height lookup with 8-pixel steps, not the original slopes,
 full SMS slope and rolling physics, wall collision, inertia or level objects. It has no sound.
 The camera follows horizontally and vertically in 8-pixel increments; the

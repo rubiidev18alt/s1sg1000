@@ -224,35 +224,50 @@ physics_x:
   ld a,(controls)
   bit 1,a
   jr z,normal_movement
+  ; The SMS permits rolling at any nonzero speed. At rest down remains
+  ; a crouch rather than creating a stationary roll.
   ld hl,(xvel)
-  bit 7,h
-  jr z,roll_check_speed
-  xor a
-  sub l
-  ld l,a
-  ld a,0
-  sbc a,h
-  ld h,a
-roll_check_speed:
   ld a,h
-  or a
-  jr nz,enter_roll
-  ld a,l
-  cp $80
-  jr c,normal_movement
+  or l
+  jp z,normal_movement
 enter_roll:
   ld a,1
   ld (rolling),a
 roll_physics:
-  ; No regular acceleration or steering while rolling. The height table
-  ; indicates whether the next 8-pixel column is downhill in travel direction.
+  ; On the SMS (01:535B-53A4), pressing opposite with down released
+  ; exits the grounded roll and applies normal braking. Same-direction input
+  ; and horizontal input while down is held do not accelerate the ground roll.
+  ld a,(controls)
+  bit 1,a
+  jr nz,roll_friction
+  bit 2,a
+  jr z,roll_check_right
+  ld hl,(xvel)
+  bit 7,h
+  jr nz,roll_friction
+  xor a
+  ld (rolling),a
+  jp move_left
+roll_check_right:
+  bit 3,a
+  jr z,roll_friction
+  ld hl,(xvel)
+  bit 7,h
+  jr z,roll_friction
+  xor a
+  ld (rolling),a
+  jp move_right
+roll_friction:
+  ; SMS flat roll drag is $0004 per frame (01:53A7), not $0010.
+  ; This stepped test course retains its previous downhill exemption: the
+  ; original slope collision/acceleration system is not yet ported.
   call rolling_downhill
   or a
   jr nz,roll_maintain_speed
   ld hl,(xvel)
   bit 7,h
   jr nz,roll_slow_left
-  ld de,$0010
+  ld de,$0004
   or a
   sbc hl,de
   jr c,roll_stop
@@ -261,7 +276,7 @@ roll_physics:
   jr z,roll_stop
   jp save_vx
 roll_slow_left:
-  ld de,$0010
+  ld de,$0004
   add hl,de
   bit 7,h
   jp nz,save_vx
@@ -273,6 +288,7 @@ roll_stop:
 roll_maintain_speed:
   ld hl,(xvel)
   jp save_vx
+
 normal_movement:
   ld a,(controls)
   bit 3,a                 ; right has priority when both are held
@@ -419,6 +435,13 @@ jump_pressed:
   jr z,gravity
   ld a,1
   ld (jump_latch),a
+  ld a,(rolling)
+  or a
+  jr z,jump_not_rolling
+  ld a,(xvel)
+  and $F8
+  ld (xvel),a
+jump_not_rolling:
   xor a
   ld (rolling),a
   ld (grounded),a

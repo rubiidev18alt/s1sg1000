@@ -167,6 +167,46 @@ int main(int argc, char** argv) {
     roll.frames(100);
     assert(roll.vx() == 0 && roll.byte(0xC015) == 0);
 
+    // The SMS rolling branch uses four 8.8 subpixels of flat drag per
+    // frame, symmetrically. Same-direction input doesn't accelerate a roll.
+    Simulation roll_flat_right(argv[1]);
+    roll_flat_right.set_x(24);
+    roll_flat_right.set_word(0xC004, 0x0200);
+    roll_flat_right.set_byte(0xC015, 1);
+    roll_flat_right.press(Key_Right);
+    roll_flat_right.frames(5);
+    assert(roll_flat_right.vx() == 0x0200 - 5 * 4 && roll_flat_right.byte(0xC015));
+    Simulation roll_flat_left(argv[1]);
+    roll_flat_left.set_x(72);
+    roll_flat_left.set_word(0xC004, -0x0200);
+    roll_flat_left.set_byte(0xC015, 1);
+    roll_flat_left.press(Key_Left);
+    roll_flat_left.frames(5);
+    assert(roll_flat_left.vx() == -0x0200 + 5 * 4 && roll_flat_left.byte(0xC015));
+    // With down held, opposing input doesn't interrupt the roll. Releasing
+    // down while still holding opposite unrolls and applies standard braking.
+    Simulation roll_brake(argv[1]);
+    roll_brake.set_x(24);
+    roll_brake.set_word(0xC004, 0x0200);
+    roll_brake.set_byte(0xC015, 1);
+    roll_brake.press(Key_Down);
+    roll_brake.press(Key_Left);
+    roll_brake.frames(3);
+    assert(roll_brake.byte(0xC015) && roll_brake.vx() == 0x0200 - 3 * 4);
+    roll_brake.release(Key_Down);
+    roll_brake.frames(1);
+    assert(!roll_brake.byte(0xC015) && roll_brake.vx() == 0x0200 - 3 * 4 - 0x30);
+    Simulation low_speed(argv[1]);
+    low_speed.set_word(0xC004, 0x0040);
+    low_speed.press(Key_Down);
+    low_speed.frames(1);
+    assert(low_speed.byte(0xC015) && low_speed.vx() == 0x003c);
+    Simulation tiny_speed(argv[1]);
+    tiny_speed.set_word(0xC004, -3);
+    tiny_speed.set_byte(0xC015, 1);
+    tiny_speed.frames(1);
+    assert(tiny_speed.vx() == 0 && !tiny_speed.byte(0xC015));
+
     // Set up rolls on both downward slopes; speed must not decrease.
     Simulation downhill_right(argv[1]);
     downhill_right.set_x(244); // centre in column 32, falling to the right
