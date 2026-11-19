@@ -80,7 +80,7 @@ SG-1000 if needed). NTSC timing is the reference.
 
 In either zone, tap button 2 to toggle debug flight. Use the D-pad to move freely in
 all four directions, including diagonally, through terrain without gravity;
-the camera follows and movement stays within the test-course bounds. Tap
+the camera follows and movement stays within that zone's player bounds. Tap
 button 2 again to return to normal physics, with momentum cleared. Exiting
 while inside or below terrain may snap Sonic back onto the floor.
 
@@ -108,7 +108,7 @@ at platform edges. Full-solid blocks stop motion from either side, and floor
 tiles connected to solid terrain also block upward motion. Detached platforms
 remain one-way. Wall and ceiling probes are approximate, and there are no
 moving platforms or original level objects.
-There is no complete SMS slope and rolling physics or music yet.
+There is no complete SMS slope and rolling physics or full music driver yet.
 In both levels the camera is offset 16 pixels to the right of its original
 prototype position, giving more view ahead. The camera follows horizontally
 and vertically in 8-pixel increments; the
@@ -232,9 +232,14 @@ PSG tone channel 2 only. Their note lengths, pitch sweeps, repeated notes and
 volume steps follow the SMS effects data, rendered as precomputed frame
 sequences rather than the original sound driver. Effect priority and retrigger
 behavior remain simplified, and the result has not been verified by listening
-against the original hardware. Other Sonic sounds and music are not yet
-implemented. TEST has no background music.
-The SMS songs use all four PSG streams, so reserving a channel for sound
-effects requires an arrangement or adaptation; raw streams are not an
-SG-1000 audio driver by themselves. Generated ROM-derived assets remain
-ignored.
+against the original hardware. Other Sonic sounds are not yet implemented.
+
+A first music port plays simplified two-tone arrangements of the original SMS
+title theme on zone select and Green Hill music in GHZ1; TEST is silent. The
+build extracts the original streams and compiles the first two tone parts into
+frame-timed note/volume events, preserving song loops and note timing. This
+omits the third tone and noise parts, and does not yet reproduce the original
+envelopes, vibrato, pitch bends or legato. Channel 2 remains reserved for
+sound effects. The title stream ends in silence as in its extracted data. This
+is an initial arrangement, not a complete or listening-verified music port.
+Generated ROM-derived assets remain ignored.

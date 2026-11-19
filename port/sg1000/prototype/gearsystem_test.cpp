@@ -53,6 +53,44 @@ struct Simulation {
 
 int main(int argc, char** argv) {
     if (argc != 2) return 2;
+    // Title plays on tone 0/1, with tone 2 kept free. Entering TEST
+    // silences both music channels; entering GHZ starts its own arrangement.
+    Simulation title_music(argv[1], false);
+    auto title_state = title_music.core.GetAudio()->GetPSG()->GetState();
+    for (int i = 0; i < 100 && title_state.channels[0].volume_reg == 15; ++i) {
+        title_music.frames(1);
+        title_state = title_music.core.GetAudio()->GetPSG()->GetState();
+    }
+    assert(title_state.channels[0].volume_reg < 15);
+    assert(title_state.channels[0].period == 338 * 16);
+    assert(title_state.channels[2].volume_reg == 15);
+    title_music.press(Key_1);
+    title_music.frames(2);
+    title_music.release(Key_1);
+    title_music.frames(10);
+    auto test_state = title_music.core.GetAudio()->GetPSG()->GetState();
+    assert(test_state.channels[0].volume_reg == 15);
+    assert(test_state.channels[1].volume_reg == 15);
+    Simulation ghz_music(argv[1], false);
+    ghz_music.press(Key_2);
+    ghz_music.frames(3);
+    ghz_music.release(Key_2);
+    ghz_music.frames(2);
+    ghz_music.press(Key_1);
+    ghz_music.frames(3);
+    ghz_music.release(Key_1);
+    ghz_music.frames(40);
+    auto ghz_state = ghz_music.core.GetAudio()->GetPSG()->GetState();
+    assert(ghz_state.channels[0].volume_reg < 15);
+    assert(ghz_state.channels[1].volume_reg < 15);
+    assert(ghz_state.channels[2].volume_reg == 15);
+    assert(ghz_state.channels[3].volume_reg == 15);
+    ghz_music.press(Key_1);
+    ghz_music.frames(1);
+    ghz_state = ghz_music.core.GetAudio()->GetPSG()->GetState();
+    assert(ghz_state.channels[0].volume_reg < 15);
+    assert(ghz_state.channels[2].volume_reg < 15); // effects alongside music
+    ghz_music.release(Key_1);
     Simulation menu(argv[1], false);
     auto vram = menu.core.GetVideo()->GetVRAM();
     const u8 title[] = {8, 9, 10, 11, 0, 12, 11, 13, 11, 14, 15};
@@ -109,6 +147,14 @@ int main(int argc, char** argv) {
     assert(button2.x() == 6559 && button2.y() == 480);
     button2.release(Key_Right);
     button2.release(Key_Down);
+    button2.set_x(2);
+    button2.set_y(2);
+    button2.press(Key_Left);
+    button2.press(Key_Up);
+    button2.frames(4);
+    assert(button2.x() == 0 && button2.y() == 0);
+    button2.release(Key_Left);
+    button2.release(Key_Up);
     button2.set_x(256);
     button2.set_y(200);
     button2.press(Key_2);

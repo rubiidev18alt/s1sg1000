@@ -70,6 +70,8 @@ ring_redraw db
 ring_cam_page db
 sfx_ptr dw
 sfx_timer db
+music_ch0 dsb 4
+music_ch1 dsb 4
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -174,7 +176,12 @@ solid_tile:
 .IFDEF GHZ_PROBE
   jp ghz_probe
 .ENDIF
+  call music_title_start
   call zone_menu
+  call music_stop
+  ld a,(menu_selection)
+  or a
+  call nz,music_ghz_start
   ld a,(menu_selection)
   or a
   call nz,ghz_init
@@ -218,6 +225,7 @@ preview_frame:
 frame_draw:
   call update_camera
   call rings_tick
+  call music_tick
   call sfx_tick
   call draw_sonic
   ld a,(controls)
@@ -429,6 +437,7 @@ menu_poll:
   in a,($BF)
   and $80
   jr z,menu_poll
+  call music_tick
   in a,($DC)
   cpl
   ret
@@ -1459,6 +1468,7 @@ sprite_left:
 .INCLUDE "port/sg1000/prototype/ghz_level.asm"
 .INCLUDE "port/sg1000/prototype/rings.asm"
 .INCLUDE "port/sg1000/prototype/sfx.asm"
+.INCLUDE "port/sg1000/prototype/music.asm"
 
 ; Graphics I, 16K VRAM, display disabled until menu setup completes.
 vdpregs:

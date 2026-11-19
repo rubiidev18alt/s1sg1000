@@ -13,6 +13,7 @@ import layered_sonic
 import menu_font
 import prepare_ghz_layout
 import prepare_audio_rings
+import prepare_music
 import struct
 from itertools import groupby
 from collections import deque
@@ -140,7 +141,8 @@ def main():
                         'annot/sonic1.cfg', 'src/whole.asm'], cwd=ROOT,
                        check=True, stdout=subprocess.DEVNULL)
         rom_bytes = rom.read_bytes()
-        ghz_rings, _, _ = prepare_audio_rings.extract(rom_bytes)
+        ghz_rings, songs, _ = prepare_audio_rings.extract(rom_bytes)
+        (out / 'music_score.inc').write_text(prepare_music.compile_score(songs))
         ghz_rings.sort()
         (out / 'ghz_ring_buckets.bin').write_bytes(ring_buckets(ghz_rings))
         test_rings = [(96, 176), (112, 176), (160, 104), (352, 208)]
