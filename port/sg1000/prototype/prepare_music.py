@@ -94,6 +94,13 @@ def decode(song, channel, numerator, denominator):
     raise ValueError('music stream exceeds command limit')
 
 
+def noise_event(duration, volume):
+    """Pack a nonzero 1..15-frame noise event and attenuation into one byte."""
+    if not 1 <= duration <= 15 or not 0 <= volume <= 15:
+        raise ValueError('noise event cannot be represented')
+    return duration << 4 | volume
+
+
 def compile_score(songs):
     lines = []
     for name, tempo in [('title', (5, 4)), ('ghz', (1, 1))]:
@@ -107,14 +114,14 @@ def compile_score(songs):
                 if channel != 3:
                     lines.append('.db {}, {}, {}'.format(duration, note, volume))
                 elif note == 0x7f:
-                    lines.append('.db {}, 15'.format(duration))
+                    lines.append('.db {}'.format(noise_event(duration, 15)))
                 else:
                     # Preset 70 is a sharp hit; 71 has the slower SMS decay.
                     attack = min(duration, 1 if note == 0x70 else 4)
-                    lines.append('.db {}, {}'.format(attack, volume))
+                    lines.append('.db {}'.format(noise_event(attack, volume)))
                     if duration > attack:
                         tail = min(15, volume + (7 if note == 0x70 else 5))
-                        lines.append('.db {}, {}'.format(duration - attack, tail))
+                        lines.append('.db {}'.format(noise_event(duration - attack, tail)))
             lines.append('.db 0')
             lines.append('.dw {}'.format(label + '_loop' if restart is not None else '0'))
     return '\n'.join(lines) + '\n'

@@ -20,6 +20,12 @@ class MusicPreparationTest(unittest.TestCase):
         self.assertEqual(events, [(3, 0x10, 3), (3, 0x7f, 15),
                                   (3, 0x10, 4), (3, 0x7f, 15)])
 
+    def test_packed_noise_event(self):
+        self.assertEqual(prepare_music.noise_event(12, 9), 0xc9)
+        for duration, volume in ((0, 0), (16, 0), (1, 16), (1, -1)):
+            with self.assertRaises(ValueError):
+                prepare_music.noise_event(duration, volume)
+
     def test_invalid_bytecode_is_rejected(self):
         header = bytes([10, 0, 12, 0, 12, 0, 12, 0, 0, 0])
         with self.assertRaises(ValueError):

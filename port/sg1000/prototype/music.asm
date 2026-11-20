@@ -150,7 +150,8 @@ music_period_ready:
   ld a,l
   out ($7F),a
   ret
-; Compact noise records: duration, attenuation. Zero duration points to a
+; Compact noise records: duration in the high nibble, attenuation in the
+; low nibble. A zero byte points to a
 ; loop or null, just like the tone scores. Both SMS percussion presets use
 ; white-noise setting 5; their different decays are baked into the records.
 music_tick_noise:
@@ -181,11 +182,17 @@ music_noise_next:
   out ($7F),a
   ret
 music_noise_note:
-  ld (music_ch3+2),a
-  ld a,(hl)
-  inc hl
+  ld c,a
+  and $0F
   or $F0
   out ($7F),a
+  ld a,c
+  rrca
+  rrca
+  rrca
+  rrca
+  and $0F
+  ld (music_ch3+2),a
   ld (music_ch3),hl
   ret
 music_periods:
