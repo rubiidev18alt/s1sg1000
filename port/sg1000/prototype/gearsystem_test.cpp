@@ -850,11 +850,15 @@ int main(int argc, char** argv) {
     int sign_x = 802 - (sign.camera_x() + 256 * sign.byte(0xC01E));
     int sign_y = 48 - sign.camera_y();
     assert(sign_x >= 0 && sign_x <= 28 && sign_y >= 0 && sign_y <= 18);
-    assert(sign_vram[0x1800 + (sign_y + 1) * 32 + sign_x] == 92);
-    assert(sign_vram[0x1800 + (sign_y + 5) * 32 + sign_x + 1] == 109);
+    assert(sign_vram[0x1800 + (sign_y + 1) * 32 + sign_x] == 88);
+    assert(sign_vram[0x1800 + (sign_y + 1) * 32 + sign_x + 1] == 104);
+    assert(sign_vram[0x1800 + (sign_y + 2) * 32 + sign_x] == 96);
+    assert(sign_vram[0x1800 + (sign_y + 5) * 32 + sign_x + 1] == 92);
     assert((sign_y + 6 + sign.camera_y()) * 8 == 432); // pole meets floor
     assert(sign_vram[0x1800 + (sign_y + 6) * 32 + sign_x + 1] >= 64); // terrain below
-    assert(sign_vram[0x200B] == 0xF7 && sign_vram[0x200C] == 0xF8);
+    assert(sign_vram[0x200B] == 0xE7); // grey frame and pole
+    assert(sign_vram[0x200C] == 0xA7); // yellow face edges
+    assert(sign_vram[0x200D] == 0x8A); // red detail on yellow face
     std::vector<u8> sign_initial(sign_vram + 88 * 8, sign_vram + 112 * 8);
     sign.set_byte(0xC03D, 0);
     sign.set_x(6420); sign.set_y(400);
@@ -878,9 +882,13 @@ int main(int argc, char** argv) {
         for (int j = 0; j < 192; ++j) sign_changed |= sign_vram[88 * 8 + j] != sign_initial[j];
     }
     assert(sign_changed);
+    for (int i = 0; i < 50 && sign.byte(0xC076) == 1 && sign.byte(0xC078) != 2; ++i) sign.frames(1);
+    assert(sign.byte(0xC076) == 1 && sign.byte(0xC078) == 2);
+    assert(sign_vram[0x200D] == 0xE7); // slim grey edge, not a yellow block
     for (int i = 0; i < 150 && sign.byte(0xC076) == 1; ++i) sign.frames(1);
     assert(sign.byte(0xC076) == 2);
     assert(sign.byte(0xC078) == 4);
+    assert(sign_vram[0x200D] == 0x8A); // result face returns to yellow/red
     assert(sign.word(0xC079) > 300); // clear tune plays before the results
     int start_run_x = sign.x();
     sign.press(Key_Left); sign.press(Key_2); // must not override completion

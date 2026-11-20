@@ -8,17 +8,30 @@ signpost_init:
   ld (sign_frame),a
   ld hl,$600B                 ; character groups 88..111
   call vdp_addr
-  ld a,$F7                 ; upper face: white on sky
+  ld a,$E7                 ; grey border and pole on sky
   out ($BE),a
-  ld a,$F8                 ; centre face: white on red, like the SMS sign
+  ld a,$A7                 ; yellow face edges on sky
   out ($BE),a
-  ld a,$F7                 ; pole: white on sky
+  ld a,$8A                 ; red/black detail on yellow face
   out ($BE),a
   xor a
   jp signpost_upload
 
 ; A selects one of five source-derived, 192-byte animation frames.
 signpost_upload:
+  ; The side-on frame is grey against sky, not a filled yellow rectangle.
+  push af
+  ld hl,$600D
+  call vdp_addr
+  pop af
+  cp 2
+  ld b,a
+  ld a,$8A
+  jr nz,signpost_face_colour
+  ld a,$E7
+signpost_face_colour:
+  out ($BE),a
+  ld a,b
   ld l,a
   ld h,0
   ld e,l
@@ -209,30 +222,36 @@ signpost_draw:
   add hl,de
   ld de,$5800
   add hl,de
-  ; First art row is empty in all frames. Leave underlying sky intact.
+  ; Write only occupied cells; group characters by material rather than
+  ; screen row so each group of eight can have its own Graphics I colours.
   ld de,32
   add hl,de
-  ld c,92
-  ld b,3
-signpost_draw_row:
+  ld c,0
+signpost_draw_board_row:
   call vdp_addr
+  ld b,4
   ld a,c
+  push hl
+  ld l,a
+  ld h,0
+  ld de,signpost_board_tiles
+  add hl,de
+signpost_draw_board_tile:
+  ld a,(hl)
   out ($BE),a
-  inc a
-  out ($BE),a
-  inc a
-  out ($BE),a
-  inc a
-  out ($BE),a
-  inc a
-  ld c,a
+  inc hl
+  djnz signpost_draw_board_tile
+  pop hl
   ld de,32
   add hl,de
-  djnz signpost_draw_row
-  ; Only the middle two columns of the pole contain pixels. Leaving the
-  ; outer tiles alone preserves nearby terrain and background decoration.
+  ld a,c
+  add a,4
+  ld c,a
+  cp 12
+  jr nz,signpost_draw_board_row
+  ; Only the middle two columns of the pole contain pixels.
   inc hl
-  ld c,105
+  ld c,90
   ld b,2
 signpost_draw_pole:
   call vdp_addr
@@ -240,9 +259,13 @@ signpost_draw_pole:
   out ($BE),a
   inc a
   out ($BE),a
-  add a,3
+  inc a
   ld c,a
   ld de,32
   add hl,de
   djnz signpost_draw_pole
   ret
+signpost_board_tiles:
+.db 88,104,105,89
+.db 96,106,107,97
+.db 98,108,109,99

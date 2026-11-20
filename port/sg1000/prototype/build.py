@@ -133,28 +133,51 @@ def ghz_signpost(objects):
     return positions[0]
 
 
-def signpost_patterns(art):
-    """Convert original signpost map and art to 24 TMS background tiles/frame.
+# Pattern slots grouped by Graphics I colour: grey/cyan, yellow/cyan,
+# red/yellow. Each entry is a row/column in the original 4x6 tile map;
+# unused slots are blank to keep each colour group aligned to eight tiles.
+SIGNPOST_SLOTS = (
+    (1, 0), (1, 3), (4, 1), (4, 2), (5, 1), (5, 2), None, None,
+    (2, 0), (2, 3), (3, 0), (3, 3), None, None, None, None,
+    (1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2), None, None,
+)
 
-    The SMS palette colour 8 is the face fill. Excluding it keeps the face
-    details visible in the SG-1000's single-colour background-tile rendering.
+def signpost_patterns(art):
+    """Convert original signpost frames into three TMS colour groups.
+
+    Border/pole use grey against sky, side pieces yellow against sky, and
+    interior details red against yellow. The narrow side-on view changes its
+    interior group to grey/sky at runtime, preserving its transparent gaps.
     """
     raw = menu_font.decode_hy(art)
     if len(raw) < 128 * 32:
         raise ValueError('truncated signpost art')
     out = bytearray()
-    for mapping in SIGNPOST_MAPS:
-        for row in range(6):
-            for col in range(4):
-                tile = mapping[(row // 2) * 4 + col]
-                if tile is None:
-                    out.extend(bytes(8))
-                    continue
-                tile += row % 2
-                for y in range(8):
-                    planes = raw[tile * 32 + y * 4:tile * 32 + y * 4 + 4]
-                    # Any nonzero colour other than the flat background 8.
-                    out.append(planes[0] | planes[1] | planes[2])
+    for frame, mapping in enumerate(SIGNPOST_MAPS):
+        for slot, cell in enumerate(SIGNPOST_SLOTS):
+            if cell is None:
+                out.extend(bytes(8))
+                continue
+            row, col = cell
+            tile = mapping[(row // 2) * 4 + col]
+            if tile is None:
+                out.extend(bytes(8))
+                continue
+            tile += row % 2
+            for y in range(8):
+                planes = raw[tile * 32 + y * 4:tile * 32 + y * 4 + 4]
+                if slot < 16 or frame == 2:
+                    # Opaque silhouette against cyan, including SMS colour 8.
+                    out.append(planes[0] | planes[1] | planes[2] | planes[3])
+                else:
+                    # Red/black/brown/blue marks contrast with the yellow face;
+                    # grey and white join yellow under the two-colour limit.
+                    bits = 0
+                    for x in range(8):
+                        colour = sum(((planes[p] >> (7-x)) & 1) << p for p in range(4))
+                        if colour not in (0, 5, 7, 9):
+                            bits |= 0x80 >> x
+                    out.append(bits)
     return bytes(out)
 
 

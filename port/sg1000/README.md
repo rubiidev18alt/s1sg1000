@@ -256,7 +256,8 @@ static approximation, not the original SMS art or parallax background.
 
 GHZ1's signpost uses the original object X position (6432) and rests its pole
 on the prototype's floor at y=432. It uses five frames converted from the SMS
-sprite maps and art as background tiles; the centre of its face is red. Sonic
+sprite maps and art as background tiles; its yellow face, red details, and
+gray frame and pole approximate the SMS palette within Graphics I limits. Sonic
 touching it starts a speed-sensitive spin that slows before settling on the
 no-bonus face. Contact, spin physics, colours and sounds remain approximations,
 and bonus rewards are not yet implemented. After the post settles, Sonic

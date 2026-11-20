@@ -93,8 +93,28 @@ class RuntimeLayoutTest(unittest.TestCase):
         self.assertTrue(any(result[:192]))
         for frame in range(5):
             tiles = result[frame * 192:(frame + 1) * 192]
-            for index in (0, 1, 2, 3, 16, 19, 20, 23):
-                self.assertEqual(tiles[index * 8:(index + 1) * 8], bytes(8))
+            for index, cell in enumerate(mod.SIGNPOST_SLOTS):
+                if cell is None:
+                    self.assertEqual(tiles[index * 8:(index + 1) * 8], bytes(8))
+        self.assertEqual(len(set(mod.SIGNPOST_SLOTS) - {None}), 16)
+        self.assertTrue(any(result[16 * 8:22 * 8]))
+        raw = mod.menu_font.decode_hy(art)
+        for frame, mapping in enumerate(mod.SIGNPOST_MAPS):
+            for slot, cell in enumerate(mod.SIGNPOST_SLOTS):
+                if cell is None:
+                    continue
+                row, col = cell
+                tile = mapping[(row // 2) * 4 + col]
+                for y in range(8):
+                    expected = 0
+                    if tile is not None:
+                        offset = (tile + row % 2) * 32 + y * 4
+                        planes = raw[offset:offset + 4]
+                        for x in range(8):
+                            colour = sum(((planes[p] >> (7 - x)) & 1) << p for p in range(4))
+                            visible = colour != 0 if slot < 16 or frame == 2 else colour not in (0, 5, 7, 9)
+                            expected |= int(visible) << (7 - x)
+                    self.assertEqual(result[frame * 192 + slot * 8 + y], expected)
         rom = (ROOT / 'baserom/sonic1.sms').read_bytes()
         _, layout, flags, floor, _ = mod.prepare_ghz_layout.extract(rom)
         kind = flags[layout[13 * 256 + 6432 // 32]] & 63
