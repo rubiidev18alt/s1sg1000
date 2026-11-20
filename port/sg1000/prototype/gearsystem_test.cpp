@@ -4,6 +4,8 @@
 #include "Audio.h"
 #include <cassert>
 #include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <vector>
 
 bool g_mcp_stdio_mode = false;
@@ -53,6 +55,41 @@ struct Simulation {
 
 int main(int argc, char** argv) {
     if (argc != 2) return 2;
+    // Check the entire expansion window with automatic .sg detection, not
+    // only with the forced mapper used by the gameplay simulations below.
+    std::ifstream rom_file(argv[1], std::ios::binary);
+    std::vector<u8> rom((std::istreambuf_iterator<char>(rom_file)), {});
+    assert(rom.size() == 0xC000);
+    GearsystemCore automatic;
+    automatic.Init();
+    assert(automatic.LoadROM(argv[1], nullptr));
+    assert(automatic.GetCartridge()->IsSG1000());
+    assert(automatic.GetCartridge()->GetType() == Cartridge::CartridgeSG1000Mapper);
+    auto memory = automatic.GetMemory();
+    for (unsigned addr = 0x8000; addr < 0xC000; ++addr)
+        assert(memory->Read(addr) == rom[addr]);
+    assert(rom[0xBFF8] == 'S' && rom[0xBFFF] == 'D');
+    memory->Write(0xBFFF, 0);
+    assert(memory->Read(0xBFFF) == 'D');
+    memory->Write(0xC000, 0x5A);
+    assert(memory->Read(0xC400) == 0x5A);
+    std::vector<u8> auto_video(320 * 288 * 4);
+    std::vector<s16> auto_audio(16384);
+    int auto_samples = 0;
+    auto run_auto = [&](int frames) {
+        while (frames--) automatic.RunToVBlank(auto_video.data(), auto_audio.data(), &auto_samples);
+    };
+    run_auto(15);
+    automatic.KeyPressed(Joypad_1, Key_1);
+    run_auto(3);
+    automatic.KeyReleased(Joypad_1, Key_1);
+    run_auto(5);
+    const u8* auto_vram = automatic.GetVideo()->GetVRAM();
+    std::ifstream ring_art_file("build/sg1000/prototype/ring_patterns.bin", std::ios::binary);
+    std::vector<u8> ring_art((std::istreambuf_iterator<char>(ring_art_file)), {});
+    assert(ring_art.size() >= 32);
+    for (int i = 0; i < 32; ++i)
+        assert(auto_vram[0x100 + i] == ring_art[i]); // upper-ROM ring art
     // Title plays on tone 0/1, with tone 2 kept free. Entering TEST
     // silences both music channels; entering GHZ starts its own arrangement.
     Simulation title_music(argv[1], false);

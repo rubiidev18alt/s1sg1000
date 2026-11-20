@@ -4,14 +4,14 @@
 .INCLUDE "build/sg1000/prototype/ghz_ramp.inc"
 .MEMORYMAP
   DEFAULTSLOT 0
-  SLOTSIZE $8000
+  SLOTSIZE $C000
   SLOT 0 $0000
   SLOTSIZE $0400
   SLOT 1 $C000
 .ENDME
 .ROMBANKMAP
   BANKSTOTAL 1
-  BANKSIZE $8000
+  BANKSIZE $C000
   BANKS 1
 .ENDRO
 .RAMSECTION "state" SLOT 1
@@ -1658,6 +1658,9 @@ ghz_visual_rows:
 .INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 0 READ 128
 ghz_visual_data:
 .INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 128
+; Place real, frequently used asset data in the expansion window so the
+; game and integration tests exercise reads beyond the old 32 KiB boundary.
+.ORG $8000
 ghz_terrain_patterns:
 .INCBIN "build/sg1000/prototype/ghz_terrain_patterns.bin"
 
@@ -1671,8 +1674,7 @@ test_rings:
 ghz_rings:
 .INCBIN "build/sg1000/prototype/ghz_rings.bin"
 ghz_ring_buckets:
-.IFNDEF GHZ_PROBE
 .INCBIN "build/sg1000/prototype/ghz_ring_buckets.bin"
-.ENDIF
-; The collision-only probe never runs ring code. Omitting its last data block
-; leaves room for the probe harness in the fixed 32 KiB test cartridge.
+; Known bytes at the end of the linear ROM for emulator boundary testing.
+.ORG $BFF8
+.db "SG48KEND"

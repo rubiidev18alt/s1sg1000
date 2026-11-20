@@ -66,7 +66,10 @@ no playable game or sound/physics code is produced by this step.
 
 ## Playable physics sandbox
 
-The separate prototype builds a 32 KiB SG-1000 ROM with a black background,
+The separate prototype builds a 48 KiB linear SG-1000 ROM, using the
+$8000-$BFFF expansion window for asset data. This has been tested in the
+local Gearsystem core, but compatibility with a particular Manic EMU version
+or physical expansion hardware has not yet been verified. The TEST course has a black background,
 a 768-pixel-wide white test course with multiple stepped hills. Move with left/right; button 1 jumps.
 Holding button 1 produces a higher jump. Press down while moving to roll;
 rolling slows on flat or uphill ground, but retains speed downhill. After
