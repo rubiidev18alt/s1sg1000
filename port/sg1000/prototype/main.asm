@@ -71,9 +71,9 @@ ring_redraw db
 ring_cam_page db
 sfx_ptr dw
 sfx_timer db
-music_ch0 dsb 6
-music_ch1 dsb 6
-music_ch3 dsb 3
+music_ch0 dsb 7
+music_ch1 dsb 7
+music_ch3 dsb 4
 sprite_cached_index db
 ring_hud_cached_count db
 ring_anim_frame db
@@ -81,6 +81,7 @@ ring_anim_timer db
 ghz_draw_value db
 ghz_downhill db
 launch_active db
+sfx_launch_lock db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0

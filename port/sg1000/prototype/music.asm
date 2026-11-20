@@ -19,6 +19,12 @@ music_start:
   ld (music_ch0+2),a
   ld (music_ch1+2),a
   ld (music_ch3+2),a
+  ld a,$9F
+  ld (music_ch0+6),a
+  ld a,$BF
+  ld (music_ch1+6),a
+  ld a,$FF
+  ld (music_ch3+3),a
   ld a,$E5              ; white noise, fixed rate, independent of tone 2
   out ($7F),a
   ld a,$80
@@ -42,6 +48,10 @@ music_stop:
   out ($7F),a
   ret
 music_tick:
+  ; Freeze all streams while the launcher has exclusive PSG output.
+  ld a,(sfx_launch_lock)
+  or a
+  ret nz
   ld ix,music_ch0
   call music_tick_channel
   ld ix,music_ch1
@@ -62,6 +72,7 @@ music_tick_channel:
   cp (ix+4)               ; one gentle decay step after the attack
   ret nz
   ld a,(ix+5)
+  ld (ix+6),a
   out ($7F),a
   ret
 music_next:
@@ -106,6 +117,7 @@ music_decay_volume_ready:
   ld a,b
   or (ix+3)
   or $10
+  ld (ix+6),a
   out ($7F),a
   ld (ix+0),l
   ld (ix+1),h
@@ -179,12 +191,14 @@ music_noise_next:
   jr nz,music_noise_next
   ld (music_ch3),hl
   ld a,$FF
+  ld (music_ch3+3),a
   out ($7F),a
   ret
 music_noise_note:
   ld c,a
   and $0F
   or $F0
+  ld (music_ch3+3),a
   out ($7F),a
   ld a,c
   rrca

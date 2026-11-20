@@ -724,20 +724,20 @@ int main(int argc, char** argv) {
     ramp.set_word(0xC004, 0x0200); ramp.set_word(0xC006, 0);
     ramp.set_byte(0xC008, 1); ramp.set_byte(0xC015, 1);
     ramp.press(Key_Right); ramp.press(Key_Up); ramp.frames(2);
-    assert(ramp.byte(0xC070) == 0); // too slow
+    assert(ramp.byte(0xC073) == 0); // too slow
     ramp.release(Key_Up); ramp.frames(2);
     ramp.set_x(2271); ramp.set_y(410);
     ramp.set_word(0xC004, 0x0BFC); ramp.set_word(0xC006, 0);
     ramp.set_byte(0xC008, 1); ramp.set_byte(0xC015, 1);
     ramp.frames(2);
-    assert(ramp.byte(0xC070) == 0); // no up input
+    assert(ramp.byte(0xC073) == 0); // no up input
     ramp.set_x(2271); ramp.set_y(410);
     ramp.set_word(0xC004, 0x0BFC); ramp.set_word(0xC006, 0);
     ramp.set_byte(0xC008, 1); ramp.set_byte(0xC015, 1);
     ramp.set_byte(0xC013, 16); ramp.set_byte(0xC01E, 1); ramp.set_byte(0xC014, 40);
     ramp.press(Key_Right); ramp.press(Key_Up);
-    for (int i = 0; i < 12 && ramp.byte(0xC070) == 0; ++i) ramp.frames(1);
-    assert(ramp.byte(0xC070) == 1 && !ramp.grounded());
+    for (int i = 0; i < 12 && ramp.byte(0xC073) == 0; ++i) ramp.frames(1);
+    assert(ramp.byte(0xC073) == 1 && !ramp.grounded());
     assert(static_cast<short>(ramp.word(0xC006)) < -0x0E00);
     assert(ramp.vx() > 0x0B00);
     bool heard_launch = false;
@@ -746,6 +746,11 @@ int main(int argc, char** argv) {
         heard_launch = ramp.core.GetAudio()->GetPSG()->GetState().channels[2].volume_reg < 15;
     }
     assert(heard_launch);
+    assert(ramp.byte(0xC074) == 1);
+    auto during_launch = ramp.core.GetAudio()->GetPSG()->GetState();
+    assert(during_launch.channels[0].volume_reg == 15);
+    assert(during_launch.channels[1].volume_reg == 15);
+    assert(during_launch.channels[3].volume_reg == 15);
     int cam_before = ramp.camera_x() + 256 * ramp.byte(0xC01E);
     int cam_y_before = ramp.camera_y();
     int ticks_before = ramp.byte(0xC00C);
@@ -761,7 +766,7 @@ int main(int argc, char** argv) {
     // below the level. Offscreen Sonic must not wrap around the sprite X.
     ramp.set_x(3000); ramp.set_y(4);
     ramp.set_word(0xC006, -0x0800);
-    ramp.set_byte(0xC008, 0); ramp.set_byte(0xC070, 1);
+    ramp.set_byte(0xC008, 0); ramp.set_byte(0xC073, 1);
     ramp.set_byte(0xC013, 0); ramp.set_byte(0xC01E, 0); ramp.set_byte(0xC014, 0);
     ramp.frames(40);
     assert(ramp.byte(0xC012) == 0 && ramp.x() >= 3000);
@@ -779,9 +784,56 @@ int main(int argc, char** argv) {
     approach.release(Key_Down); approach.press(Key_Up);
     for (int i = 0; i < 240 && approach.x() < 2250; ++i) approach.frames(1);
     assert(approach.x() >= 2250 && approach.vx() > 0x0300);
-    for (int i = 0; i < 100 && approach.byte(0xC070) == 0 && approach.x() < 2320; ++i)
+    for (int i = 0; i < 100 && approach.byte(0xC073) == 0 && approach.x() < 2320; ++i)
         approach.frames(1);
-    assert(approach.byte(0xC070) == 1);
+    assert(approach.byte(0xC073) == 1);
+    // Ring collection during the ramp effect cannot interrupt it. Music is
+    // muted and frozen, then resumes at the exact saved PSG volumes.
+    Simulation priority(argv[1], false);
+    priority.press(Key_2); priority.frames(3); priority.release(Key_2); priority.frames(2);
+    priority.press(Key_1); priority.frames(3); priority.release(Key_1); priority.frames(40);
+    priority.set_byte(0xC03D, 1);
+    priority.set_x(2260); priority.set_y(400); priority.frames(20);
+    priority.set_byte(0xC03D, 0);
+    priority.set_x(2271); priority.set_y(410);
+    priority.set_word(0xC004, 0x0BFC); priority.set_word(0xC006, 0);
+    priority.set_byte(0xC008, 1); priority.set_byte(0xC015, 1);
+    priority.press(Key_Right); priority.press(Key_Up);
+    for (int i = 0; i < 30 && priority.byte(0xC074) == 0; ++i) priority.frames(1);
+    assert(priority.byte(0xC074) == 1);
+    int saved_tone0 = priority.byte(0xC061) & 15;
+    int saved_tone1 = priority.byte(0xC068) & 15;
+    int saved_noise = priority.byte(0xC06C) & 15;
+    int saved_song0 = priority.word(0xC05B), saved_song1 = priority.word(0xC062);
+    int saved_noise_ptr = priority.word(0xC069);
+    int launch_ptr = priority.word(0xC058);
+    priority.set_byte(0xC03D, 1);
+    priority.release(Key_Right); priority.release(Key_Up);
+    priority.set_x(2292); priority.set_y(312);
+    for (int i = 0; i < 30 && priority.byte(0xC03E) == 0; ++i) priority.frames(1);
+    assert(priority.byte(0xC03E) == 1); // ring collected during launch
+    assert(priority.byte(0xC074) == 1);
+    assert(priority.word(0xC058) >= launch_ptr); // still the launch effect
+    assert(priority.word(0xC05B) == saved_song0 && priority.word(0xC062) == saved_song1);
+    assert(priority.word(0xC069) == saved_noise_ptr);
+    auto isolated = priority.core.GetAudio()->GetPSG()->GetState();
+    for (int channel : {0, 1, 3}) assert(isolated.channels[channel].volume_reg == 15);
+    for (int i = 0; i < 180 && priority.byte(0xC074) != 0; ++i) priority.frames(1);
+    assert(priority.byte(0xC074) == 0);
+    auto resumed = priority.core.GetAudio()->GetPSG()->GetState();
+    assert(resumed.channels[0].volume_reg == saved_tone0);
+    assert(resumed.channels[1].volume_reg == saved_tone1);
+    assert(resumed.channels[3].volume_reg == saved_noise);
+    priority.set_x(2308); priority.set_y(312);
+    for (int i = 0; i < 30 && priority.byte(0xC03E) < 2; ++i) priority.frames(1);
+    assert(priority.byte(0xC03E) >= 2);
+    bool ring_after_launch = false;
+    for (int i = 0; i < 20 && !ring_after_launch; ++i) {
+        priority.frames(1);
+        auto psg = priority.core.GetAudio()->GetPSG()->GetState();
+        ring_after_launch = psg.channels[2].period == 84 * 16 && psg.channels[2].volume_reg < 15;
+    }
+    assert(ring_after_launch);
     Simulation flat_roll(argv[1]);
     flat_roll.set_word(0xC004, 0x0200); flat_roll.set_byte(0xC015, 1);
     flat_roll.press(Key_Right); flat_roll.press(Key_Up);

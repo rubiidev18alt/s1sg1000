@@ -7,6 +7,7 @@ sfx_init:
   ld (sfx_ptr),a
   ld (sfx_ptr+1),a
   ld (sfx_timer),a
+  ld (sfx_launch_lock),a
   ld a,$9F
   out ($7F),a
   ld a,$BF
@@ -27,10 +28,23 @@ sfx_roll:
   jr sfx_start
 sfx_launch:
   ld hl,sfx_launch_data
-  jr sfx_start
+  ld a,1
+  ld (sfx_launch_lock),a
+  ; Mute music channels without changing their pitch or score state.
+  ld a,$9F
+  out ($7F),a
+  ld a,$BF
+  out ($7F),a
+  ld a,$FF
+  out ($7F),a
+  jr sfx_force_start
 sfx_brake:
   ld hl,sfx_brake_data
 sfx_start:
+  ld a,(sfx_launch_lock)
+  or a
+  ret nz                     ; other effects cannot interrupt the launch
+sfx_force_start:
   ld (sfx_ptr),hl
   xor a
   ld (sfx_timer),a
@@ -90,7 +104,19 @@ sfx_next:
   ld (sfx_ptr),hl
   ret
 sfx_end:
+  ld a,(sfx_launch_lock)
+  or a
+  jr z,sfx_end_clear
+  ; Restore exactly the music volumes that were sounding before the launch.
+  ld a,(music_ch0+6)
+  out ($7F),a
+  ld a,(music_ch1+6)
+  out ($7F),a
+  ld a,(music_ch3+3)
+  out ($7F),a
+sfx_end_clear:
   xor a
+  ld (sfx_launch_lock),a
   ld (sfx_ptr),a
   ld (sfx_ptr+1),a
   ld (sfx_timer),a
