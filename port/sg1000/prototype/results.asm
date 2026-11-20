@@ -1,6 +1,12 @@
 ; Minimal level-clear screen: use the original menu font, plus custom A/P/I.
 ; No score/time or bonus-stage transition exists in this prototype yet.
 result_init:
+  ld hl,240                 ; four seconds at NTSC, then return to menu
+  ld (clear_timer),hl
+  in a,($DC)
+  cpl
+  ld (controls),a
+  ld (previous_controls),a  ; ignore buttons held through the scripted exit
   call music_stop
   ld hl,$5B00
   call vdp_addr
@@ -52,6 +58,12 @@ result_letters:
 .db $3E,$08,$08,$08,$08,$08,$3E,0 ; I
 
 result_frame:
+  ld hl,(clear_timer)
+  dec hl
+  ld (clear_timer),hl
+  ld a,h
+  or l
+  jp z,init
   ; A fresh button-1 press returns to zone select. A held jump must not
   ; immediately dismiss the results screen when it first appears.
   ld a,(controls)

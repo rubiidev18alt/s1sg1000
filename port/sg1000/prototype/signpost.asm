@@ -139,6 +139,10 @@ signpost_spin_frame:
 signpost_settle:
   ld a,2
   ld (sign_state),a
+  xor a
+  ld (debug_mode),a
+  ld (launch_active),a
+  ld (rolling),a
   ld a,4
   ld (sign_frame),a
   call signpost_upload

@@ -230,6 +230,8 @@ wait_vblank:
   ld a,(sign_state)
   cp 3
   jp z,result_frame
+  cp 2
+  jr z,completion_auto_frame
   ; In either zone, button 1 + button 2 retains the animation viewer.
   ; Button 2 alone toggles free movement on its rising edge.
   ld a,b
@@ -254,6 +256,40 @@ normal_frame:
   jr frame_draw
 preview_frame:
   call animation_viewer
+  jr frame_draw
+completion_auto_frame:
+  ; The settled goal controls Sonic, irrespective of player input.
+  ld a,8
+  ld (controls),a
+  xor a
+  ld (rolling),a
+  ld (facing),a
+  ; Stop once Sonic's left edge is beyond the right edge of the fixed camera.
+  ld a,(camera_x)
+  ld l,a
+  ld a,(camera_x_hi)
+  ld h,a
+  add hl,hl
+  add hl,hl
+  add hl,hl
+  ex de,hl
+  ld a,(xpos+1)
+  ld l,a
+  ld a,(xpage)
+  ld h,a
+  or a
+  sbc hl,de
+  ld a,h
+  or a
+  jr z,completion_move
+  bit 7,a
+  jr z,frame_draw            ; fully offscreen, stay there
+completion_move:
+  ld hl,$0300
+  ld (xvel),hl
+  call physics_x
+  call physics_y
+  call animate
 frame_draw:
   call signpost_tick
   ld a,(sign_state)
@@ -269,7 +305,7 @@ frame_draw:
   call sfx_tick
   ld a,(controls)
   ld (previous_controls),a
-  jr main_loop
+  jp main_loop
 
 ; Button 2 changes modes once per press. Clear momentum and transient
 ; actions both ways, so normal gravity resumes safely on exit.
@@ -728,6 +764,9 @@ x_integrate_negative:
   cp $FF
   jr z,left_edge
 check_right_limit:
+  ld a,(sign_state)
+  cp 2
+  ret z                      ; allow the scripted exit past the normal limit
   ld a,(menu_selection)
   or a
   jp nz,ghz_x_limit
@@ -1490,7 +1529,11 @@ draw_sonic:
   ; wrapping an offscreen 16-bit position around the 8-bit sprite table.
   ld a,(launch_active)
   or a
-  jr z,draw_sonic_visible
+  jr nz,draw_sonic_check_bounds
+  ld a,(sign_state)
+  cp 2
+  jr nz,draw_sonic_visible
+draw_sonic_check_bounds:
   ld a,(camera_x)
   ld l,a
   ld a,(camera_x_hi)

@@ -254,16 +254,17 @@ GHZ1 also has small, hand-drawn clouds, islands and water in empty sky tiles.
 They repeat in world space and do not affect collision; this is a simple
 static approximation, not the original SMS art or parallax background.
 
-GHZ1's signpost appears at the original object coordinates (6432,384). It
-uses five frames converted from the SMS sprite maps and art as background
-tiles; Sonic touching it starts a spin and it settles on the no-bonus face.
-The spin and landing sound effects use original effect note pitches and
-rhythms, but approximate their envelopes. Contact bounds, spin duration and
-motion are simplified: bonus rewards are not yet implemented. On settling,
-the SMS level-end tune plays in the same simplified two-tone/noise arrangement
-as the other music. After it finishes, a basic “SONIC HAS PASSED / ACT 1”
-screen appears; button 1 returns to zone select. The screen has no score or
-bonus tally yet, and the two-colour signpost overlay may cover terrain.
+GHZ1's signpost uses the original object X position (6432) and rests its pole
+on the prototype's floor at y=432. It uses five frames converted from the SMS
+sprite maps and art as background tiles; the centre of its face is red. Sonic
+touching it starts a speed-sensitive spin that slows before settling on the
+no-bonus face. Contact, spin physics, colours and sounds remain approximations,
+and bonus rewards are not yet implemented. After the post settles, Sonic
+runs automatically off the right edge while a simplified arrangement of the
+SMS level-end tune plays. The basic “SONIC HAS PASSED / ACT 1” screen then
+appears and returns to zone select after about four seconds at NTSC, or earlier
+on a fresh button-1 press. It has no score or bonus tally yet. The signpost's
+two-colour tiles can still cover scenery within the sign's occupied cells.
 
 The prototype plays jump, roll, brake, and ring pickup sound effects using
 PSG tone channel 2 only. Their note lengths, pitch sweeps, repeated notes and
