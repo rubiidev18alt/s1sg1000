@@ -87,7 +87,7 @@ signpost_tick:
   jp sfx_sign_spin
 signpost_active:
   cp 1
-  ret nz
+  jp nz,signpost_clear_wait
   ld a,(sign_timer)
   dec a
   ld (sign_timer),a
@@ -114,7 +114,22 @@ signpost_settle:
   ld a,4
   ld (sign_frame),a
   call signpost_upload
-  jp sfx_sign_land
+  call sfx_sign_land
+  ld hl,328                 ; duration of the original clear tune arrangement
+  ld (clear_timer),hl
+  jp music_clear_start
+signpost_clear_wait:
+  cp 2
+  ret nz
+  ld hl,(clear_timer)
+  dec hl
+  ld (clear_timer),hl
+  ld a,h
+  or l
+  ret nz
+  ld a,3
+  ld (sign_state),a
+  jp result_init
 signpost_anim:
 .db 0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,3,3,0,0,0,0,0,0,0,0
 

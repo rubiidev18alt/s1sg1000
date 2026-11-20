@@ -11,6 +11,11 @@ music_ghz_start:
   ld hl,music_ghz_0
   ld de,music_ghz_1
   ld bc,music_ghz_3
+  jr music_start
+music_clear_start:
+  ld hl,music_clear_0
+  ld de,music_clear_1
+  ld bc,music_clear_3
 music_start:
   ld (music_ch0),hl
   ld (music_ch1),de
@@ -208,5 +213,3 @@ music_noise_note:
 music_periods:
 .dw $0356,$0326,$02F9,$02CE,$02A5,$0280,$025C,$023A
 .dw $021A,$01FB,$01DF,$01C4,$03F7,$03BE,$0388
-
-.INCLUDE "build/sg1000/prototype/music_score.inc"

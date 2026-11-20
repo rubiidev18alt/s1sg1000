@@ -86,6 +86,7 @@ terrain_dirty db
 sign_state db
 sign_timer db
 sign_frame db
+clear_timer dw
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -125,6 +126,7 @@ init:
   ld (debug_mode),a
   ld (launch_active),a
   ld (terrain_dirty),a
+  ld (sign_state),a
   ld a,$FF
   ld (sprite_cached_index),a
   ld (ring_hud_cached_count),a
@@ -225,6 +227,9 @@ wait_vblank:
   cpl
   ld (controls),a
   ld b,a
+  ld a,(sign_state)
+  cp 3
+  jp z,result_frame
   ; In either zone, button 1 + button 2 retains the animation viewer.
   ; Button 2 alone toggles free movement on its rising edge.
   ld a,b
@@ -251,6 +256,9 @@ preview_frame:
   call animation_viewer
 frame_draw:
   call signpost_tick
+  ld a,(sign_state)
+  cp 3
+  jp z,result_frame
   call update_camera
   call signpost_draw
   call rings_tick
@@ -1684,6 +1692,8 @@ ghz_ring_buckets:
 signpost_patterns:
 .INCBIN "build/sg1000/prototype/signpost_patterns.bin"
 .INCLUDE "port/sg1000/prototype/signpost.asm"
+.INCLUDE "port/sg1000/prototype/results.asm"
+.INCLUDE "build/sg1000/prototype/music_score.inc"
 ; Known bytes at the end of the linear ROM for emulator boundary testing.
 .ORG $BFF8
 .db "SG48KEND"

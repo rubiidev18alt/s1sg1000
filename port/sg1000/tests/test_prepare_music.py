@@ -57,7 +57,11 @@ class MusicPreparationTest(unittest.TestCase):
         self.assertEqual(sum(event[0] for event in ghz_noise[:ghz_restart]), 96)
         self.assertEqual(sum(event[0] for event in ghz_noise[ghz_restart:]), 768)
         self.assertEqual({event[1] for event in ghz_noise}, {0x70, 0x71})
+        clear_channels = [prepare_music.decode(songs['clear'], c, 4, 3) for c in (0, 1, 3)]
+        self.assertEqual([len(events) for events, _ in clear_channels], [14, 14, 23])
+        self.assertEqual([sum(e[0] for e in events) for events, _ in clear_channels[:2]], [328, 328])
         score = prepare_music.compile_score(songs)
+        self.assertIn('music_clear_0:', score)
         self.assertIn('music_title_0:', score)
         self.assertIn('.dw music_ghz_1_loop', score)
         self.assertIn('.dw music_ghz_3_loop', score)

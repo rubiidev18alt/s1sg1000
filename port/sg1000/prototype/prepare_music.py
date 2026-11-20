@@ -103,7 +103,7 @@ def noise_event(duration, volume):
 
 def compile_score(songs):
     lines = []
-    for name, tempo in [('title', (5, 4)), ('ghz', (1, 1))]:
+    for name, tempo in [('title', (5, 4)), ('ghz', (1, 1)), ('clear', (4, 3))]:
         for channel in (0, 1, 3):
             events, restart = decode(songs[name], channel, *tempo)
             label = 'music_{}_{}'.format(name, channel)

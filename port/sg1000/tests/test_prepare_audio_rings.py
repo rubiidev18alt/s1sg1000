@@ -31,7 +31,8 @@ class AudioRingPreparationTest(unittest.TestCase):
         self.assertIn((928, 200), rings)
         self.assertEqual(info['title']['channel_offsets'], [10, 140, 218, 316])
         self.assertEqual(info['ghz']['channel_offsets'], [10, 372, 717, 1276])
-        for name, filename in [('title', 'title_screen.song'), ('ghz', 'lv_ghz.song')]:
+        self.assertEqual(info['clear']['channel_offsets'], [10, 68, 111, 162])
+        for name, filename in [('title', 'title_screen.song'), ('ghz', 'lv_ghz.song'), ('clear', 'level_end.song')]:
             exported = ROOT / 'src/data' / filename
             if exported.exists():
                 self.assertEqual(songs[name], exported.read_bytes())

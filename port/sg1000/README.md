@@ -255,8 +255,11 @@ uses five frames converted from the SMS sprite maps and art as background
 tiles; Sonic touching it starts a spin and it settles on the no-bonus face.
 The spin and landing sound effects use original effect note pitches and
 rhythms, but approximate their envelopes. Contact bounds, spin duration and
-motion are simplified: bonus rewards and the act-complete transition are not
-yet implemented. The two-colour overlay may cover background terrain.
+motion are simplified: bonus rewards are not yet implemented. On settling,
+the SMS level-end tune plays in the same simplified two-tone/noise arrangement
+as the other music. After it finishes, a basic “SONIC HAS PASSED / ACT 1”
+screen appears; button 1 returns to zone select. The screen has no score or
+bonus tally yet, and the two-colour signpost overlay may cover terrain.
 
 The prototype plays jump, roll, brake, and ring pickup sound effects using
 PSG tone channel 2 only. Their note lengths, pitch sweeps, repeated notes and

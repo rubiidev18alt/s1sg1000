@@ -20,6 +20,7 @@ RING_ART = (0x2FCF0, 0x300)  # six frames, 4 SMS tiles per frame
 SONGS = {
     'title': (0xE4C3, 0x179),
     'ghz': (0xC7D0, 0x53A),
+    'clear': (0xE8B4, 0xDD),
 }
 
 
