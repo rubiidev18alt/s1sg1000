@@ -844,20 +844,34 @@ int main(int argc, char** argv) {
     sign.press(Key_2); sign.frames(3); sign.release(Key_2); sign.frames(2);
     sign.press(Key_1); sign.frames(3); sign.release(Key_1); sign.frames(40);
     sign.set_byte(0xC03D, 1); // camera settles without triggering the post
-    sign.set_x(6400); sign.set_y(360); sign.frames(20);
+    sign.set_x(6400); sign.set_y(400); sign.frames(20);
     assert(sign.byte(0xC076) == 0);
     auto sign_vram = sign.core.GetVideo()->GetVRAM();
     int sign_x = 802 - (sign.camera_x() + 256 * sign.byte(0xC01E));
-    int sign_y = 44 - sign.camera_y();
+    int sign_y = 48 - sign.camera_y();
     assert(sign_x >= 0 && sign_x <= 28 && sign_y >= 0 && sign_y <= 18);
-    assert(sign_vram[0x1800 + sign_y * 32 + sign_x] == 88);
-    assert(sign_vram[0x200B] == 0xF7);
+    assert(sign_vram[0x1800 + (sign_y + 1) * 32 + sign_x] == 92);
+    assert(sign_vram[0x1800 + (sign_y + 5) * 32 + sign_x + 1] == 109);
+    assert((sign_y + 6 + sign.camera_y()) * 8 == 432); // pole meets floor
+    assert(sign_vram[0x1800 + (sign_y + 6) * 32 + sign_x + 1] >= 64); // terrain below
+    assert(sign_vram[0x200B] == 0xF7 && sign_vram[0x200C] == 0xF8);
     std::vector<u8> sign_initial(sign_vram + 88 * 8, sign_vram + 112 * 8);
     sign.set_byte(0xC03D, 0);
-    sign.set_x(6420); sign.set_y(360);
+    sign.set_x(6420); sign.set_y(400);
     sign.set_word(0xC004, 0); sign.set_word(0xC006, 0);
     for (int i = 0; i < 10 && sign.byte(0xC076) == 0; ++i) sign.frames(1);
     assert(sign.byte(0xC076) == 1);
+    assert(sign.byte(0xC077) <= 64); // gentle touch gives a shorter spin
+    Simulation sign_fast(argv[1], false);
+    sign_fast.press(Key_2); sign_fast.frames(3); sign_fast.release(Key_2); sign_fast.frames(2);
+    sign_fast.press(Key_1); sign_fast.frames(3); sign_fast.release(Key_1); sign_fast.frames(40);
+    sign_fast.set_byte(0xC03D, 1);
+    sign_fast.set_x(6400); sign_fast.set_y(400); sign_fast.frames(20);
+    sign_fast.set_byte(0xC03D, 0);
+    sign_fast.set_x(6418); sign_fast.set_y(400);
+    sign_fast.set_word(0xC004, 0x0300); sign_fast.set_word(0xC006, 0);
+    for (int i = 0; i < 10 && sign_fast.byte(0xC076) == 0; ++i) sign_fast.frames(1);
+    assert(sign_fast.byte(0xC076) == 1 && sign_fast.byte(0xC077) >= 95);
     bool sign_changed = false;
     for (int i = 0; i < 20 && !sign_changed; ++i) {
         sign.frames(1);

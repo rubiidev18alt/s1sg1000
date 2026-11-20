@@ -1,6 +1,6 @@
-; GHZ1 signpost, at the original object coordinates (6432,384). Its visual
-; 32x48 background-tile overlay avoids Sonic's four-sprites-per-line limit.
-; Collision and spin deceleration are deliberately simplified for now.
+; GHZ1 signpost: original object x=6432; ground at this position is y=432.
+; The 32x48 converted art ends at the floor. Background tiles avoid Sonic's
+; four-sprites-per-line limit; transparent tile gaps are not overlaid.
 signpost_init:
   xor a
   ld (sign_state),a
@@ -8,9 +8,11 @@ signpost_init:
   ld (sign_frame),a
   ld hl,$600B                 ; character groups 88..111
   call vdp_addr
-  ld a,$F7
+  ld a,$F7                 ; upper face: white on sky
   out ($BE),a
+  ld a,$F8                 ; centre face: white on red, like the SMS sign
   out ($BE),a
+  ld a,$F7                 ; pole: white on sky
   out ($BE),a
   xor a
   jp signpost_upload
@@ -70,7 +72,7 @@ signpost_tick:
   ld h,a
   ld de,16
   add hl,de
-  ld de,352
+  ld de,384                ; align touch zone with grounded sign
   or a
   sbc hl,de
   ret c
@@ -82,7 +84,22 @@ signpost_tick:
   ret nc
   ld a,1
   ld (sign_state),a
-  ld a,96
+  ; Approximate the original speed-sensitive spin: a faster hit spins
+  ; longer. The SMS uses fixed-point angular velocity and deceleration.
+  ld a,(xvel+1)
+  bit 7,a
+  jr z,sign_speed_positive
+  neg
+sign_speed_positive:
+  cp 4
+  jr c,sign_speed_capped
+  ld a,3
+sign_speed_capped:
+  add a,a
+  add a,a
+  add a,a
+  add a,a
+  add a,64
   ld (sign_timer),a
   jp sfx_sign_spin
 signpost_active:
@@ -95,13 +112,21 @@ signpost_active:
   and 7
   call z,sfx_sign_spin       ; repeat original spinning motif until it settles
   ld a,(sign_timer)
-  ; Four source views, six frames each, repeatedly while spinning.
+  ; Spin faster at first, then visibly slow in the final half-second.
+  cp 32
+  jr c,signpost_slow_spin
+  srl a
+  srl a
+  jr signpost_spin_frame
+signpost_slow_spin:
+  srl a
+  srl a
+  srl a
+signpost_spin_frame:
+  and 3
   ld e,a
   ld d,0
   ld hl,signpost_anim
-  ld a,e
-  and 31
-  ld e,a
   add hl,de
   ld a,(hl)
   ld b,a
@@ -134,7 +159,7 @@ signpost_clear_wait:
   ld (sign_state),a
   jp result_init
 signpost_anim:
-.db 0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,3,3,0,0,0,0,0,0,0,0
+.db 0,1,2,3
 
 ; Draw on full terrain redraw only; animated frames replace patterns in place.
 signpost_draw:
@@ -159,7 +184,7 @@ signpost_draw:
   cp 29
   ret nc
   ld c,a
-  ld a,44                   ; (384-32)/8
+  ld a,48                   ; (432-48)/8: pole rests on ground
   ld b,a
   ld a,(camera_y)
   ld e,a
@@ -180,8 +205,11 @@ signpost_draw:
   add hl,de
   ld de,$5800
   add hl,de
-  ld c,88
-  ld b,6
+  ; First art row is empty in all frames. Leave underlying sky intact.
+  ld de,32
+  add hl,de
+  ld c,92
+  ld b,3
 signpost_draw_row:
   call vdp_addr
   ld a,c
@@ -197,4 +225,20 @@ signpost_draw_row:
   ld de,32
   add hl,de
   djnz signpost_draw_row
+  ; Only the middle two columns of the pole contain pixels. Leaving the
+  ; outer tiles alone preserves nearby terrain and background decoration.
+  inc hl
+  ld c,105
+  ld b,2
+signpost_draw_pole:
+  call vdp_addr
+  ld a,c
+  out ($BE),a
+  inc a
+  out ($BE),a
+  add a,3
+  ld c,a
+  ld de,32
+  add hl,de
+  djnz signpost_draw_pole
   ret

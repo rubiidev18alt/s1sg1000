@@ -91,6 +91,14 @@ class RuntimeLayoutTest(unittest.TestCase):
         self.assertEqual(len(result), 5 * 24 * 8)
         self.assertNotEqual(result[:192], result[192:384])
         self.assertTrue(any(result[:192]))
+        for frame in range(5):
+            tiles = result[frame * 192:(frame + 1) * 192]
+            for index in (0, 1, 2, 3, 16, 19, 20, 23):
+                self.assertEqual(tiles[index * 8:(index + 1) * 8], bytes(8))
+        rom = (ROOT / 'baserom/sonic1.sms').read_bytes()
+        _, layout, flags, floor, _ = mod.prepare_ghz_layout.extract(rom)
+        kind = flags[layout[13 * 256 + 6432 // 32]] & 63
+        self.assertEqual(416 + floor[kind * 32 + 6432 % 32], 432)
         with self.assertRaises(ValueError):
             mod.signpost_patterns(b'')
 
