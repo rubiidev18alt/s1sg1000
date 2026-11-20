@@ -52,8 +52,15 @@ result_letters:
 .db $3E,$08,$08,$08,$08,$08,$3E,0 ; I
 
 result_frame:
-  ; Button 1 returns to zone select; init reinitializes the stack and state.
+  ; A fresh button-1 press returns to zone select. A held jump must not
+  ; immediately dismiss the results screen when it first appears.
   ld a,(controls)
-  and $10
-  jp nz,init
+  ld b,a
+  ld a,(previous_controls)
+  cpl
+  and b
+  bit 4,a
+  jp nz,init                 ; init reinitializes stack and state
+  ld a,b
+  ld (previous_controls),a
   jp main_loop

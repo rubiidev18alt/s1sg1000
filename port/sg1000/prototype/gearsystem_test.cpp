@@ -875,11 +875,17 @@ int main(int argc, char** argv) {
         clear_music_audible |= psg.channels[0].volume_reg < 15 || psg.channels[1].volume_reg < 15;
     }
     assert(clear_music_audible && sign.byte(0xC076) == 2);
-    for (int i = 0; i < 400 && sign.byte(0xC076) != 3; ++i) sign.frames(1);
+    for (int i = 0; i < 400 && sign.word(0xC079) > 10; ++i) sign.frames(1);
+    assert(sign.byte(0xC076) == 2 && sign.word(0xC079) <= 10);
+    sign.press(Key_1); // held jump must not dismiss the upcoming screen
+    for (int i = 0; i < 30 && sign.byte(0xC076) != 3; ++i) sign.frames(1);
+    assert(sign.byte(0xC076) == 3);
+    sign.frames(10);
     assert(sign.byte(0xC076) == 3);
     const u8 passed_heading[] = {12,9,10,27,14,0,17,25,12,0,26,25,12,12,11,20};
     for (int i = 0; i < 16; ++i) assert(sign_vram[0x1908 + i] == passed_heading[i]);
     assert(sign_vram[0x1B00] == 0xD0);
+    sign.release(Key_1); sign.frames(3);
     sign.press(Key_1); sign.frames(3); sign.release(Key_1); sign.frames(25);
     assert(sign.byte(0xC076) == 0);
     assert(sign_vram[0x190A] == 8); // back to zone select

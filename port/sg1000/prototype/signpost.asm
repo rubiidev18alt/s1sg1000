@@ -92,6 +92,9 @@ signpost_active:
   dec a
   ld (sign_timer),a
   jr z,signpost_settle
+  and 7
+  call z,sfx_sign_spin       ; repeat original spinning motif until it settles
+  ld a,(sign_timer)
   ; Four source views, six frames each, repeatedly while spinning.
   ld e,a
   ld d,0
