@@ -30,13 +30,6 @@ sfx_launch:
   ld hl,sfx_launch_data
   ld a,1
   ld (sfx_launch_lock),a
-  ; Mute music channels without changing their pitch or score state.
-  ld a,$9F
-  out ($7F),a
-  ld a,$BF
-  out ($7F),a
-  ld a,$FF
-  out ($7F),a
   jr sfx_force_start
 sfx_brake:
   ld hl,sfx_brake_data
@@ -104,17 +97,6 @@ sfx_next:
   ld (sfx_ptr),hl
   ret
 sfx_end:
-  ld a,(sfx_launch_lock)
-  or a
-  jr z,sfx_end_clear
-  ; Restore exactly the music volumes that were sounding before the launch.
-  ld a,(music_ch0+6)
-  out ($7F),a
-  ld a,(music_ch1+6)
-  out ($7F),a
-  ld a,(music_ch3+3)
-  out ($7F),a
-sfx_end_clear:
   xor a
   ld (sfx_launch_lock),a
   ld (sfx_ptr),a
@@ -317,15 +299,16 @@ sfx_brake_data:
 .db 0
 
 ; Short approximation of SMS SFX 05 (ramp whoosh), tone channel 2 only.
+; Reduced attenuation makes the launch more prominent over the music.
 sfx_launch_data:
 .db 3
-.dw 3128
+.dw 1080
 .db 3
-.dw 2101
+.dw 53
 .db 3
-.dw 1074
+.dw 50
 .db 3
-.dw 3100
+.dw 1052
 .db 6
-.dw 6169
+.dw 4121
 .db 0

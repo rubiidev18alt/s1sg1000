@@ -748,9 +748,7 @@ int main(int argc, char** argv) {
     assert(heard_launch);
     assert(ramp.byte(0xC074) == 1);
     auto during_launch = ramp.core.GetAudio()->GetPSG()->GetState();
-    assert(during_launch.channels[0].volume_reg == 15);
-    assert(during_launch.channels[1].volume_reg == 15);
-    assert(during_launch.channels[3].volume_reg == 15);
+    assert(during_launch.channels[2].volume_reg <= 1); // louder ramp attack
     int cam_before = ramp.camera_x() + 256 * ramp.byte(0xC01E);
     int cam_y_before = ramp.camera_y();
     int ticks_before = ramp.byte(0xC00C);
@@ -787,8 +785,8 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 100 && approach.byte(0xC073) == 0 && approach.x() < 2320; ++i)
         approach.frames(1);
     assert(approach.byte(0xC073) == 1);
-    // Ring collection during the ramp effect cannot interrupt it. Music is
-    // muted and frozen, then resumes at the exact saved PSG volumes.
+    // Ring collection cannot interrupt the ramp effect, but the song keeps
+    // advancing and sounding on its own channels throughout.
     Simulation priority(argv[1], false);
     priority.press(Key_2); priority.frames(3); priority.release(Key_2); priority.frames(2);
     priority.press(Key_1); priority.frames(3); priority.release(Key_1); priority.frames(40);
@@ -801,9 +799,6 @@ int main(int argc, char** argv) {
     priority.press(Key_Right); priority.press(Key_Up);
     for (int i = 0; i < 30 && priority.byte(0xC074) == 0; ++i) priority.frames(1);
     assert(priority.byte(0xC074) == 1);
-    int saved_tone0 = priority.byte(0xC061) & 15;
-    int saved_tone1 = priority.byte(0xC068) & 15;
-    int saved_noise = priority.byte(0xC06C) & 15;
     int saved_song0 = priority.word(0xC05B), saved_song1 = priority.word(0xC062);
     int saved_noise_ptr = priority.word(0xC069);
     int launch_ptr = priority.word(0xC058);
@@ -814,16 +809,19 @@ int main(int argc, char** argv) {
     assert(priority.byte(0xC03E) == 1); // ring collected during launch
     assert(priority.byte(0xC074) == 1);
     assert(priority.word(0xC058) >= launch_ptr); // still the launch effect
-    assert(priority.word(0xC05B) == saved_song0 && priority.word(0xC062) == saved_song1);
-    assert(priority.word(0xC069) == saved_noise_ptr);
-    auto isolated = priority.core.GetAudio()->GetPSG()->GetState();
-    for (int channel : {0, 1, 3}) assert(isolated.channels[channel].volume_reg == 15);
-    for (int i = 0; i < 180 && priority.byte(0xC074) != 0; ++i) priority.frames(1);
+    bool music_advanced = false, music_audible = false;
+    for (int i = 0; i < 180 && priority.byte(0xC074) != 0; ++i) {
+        priority.frames(1);
+        music_advanced |= priority.word(0xC05B) != saved_song0 ||
+                          priority.word(0xC062) != saved_song1 ||
+                          priority.word(0xC069) != saved_noise_ptr;
+        auto psg = priority.core.GetAudio()->GetPSG()->GetState();
+        music_audible |= psg.channels[0].volume_reg < 15 ||
+                         psg.channels[1].volume_reg < 15 ||
+                         psg.channels[3].volume_reg < 15;
+    }
     assert(priority.byte(0xC074) == 0);
-    auto resumed = priority.core.GetAudio()->GetPSG()->GetState();
-    assert(resumed.channels[0].volume_reg == saved_tone0);
-    assert(resumed.channels[1].volume_reg == saved_tone1);
-    assert(resumed.channels[3].volume_reg == saved_noise);
+    assert(music_advanced && music_audible);
     priority.set_x(2308); priority.set_y(312);
     for (int i = 0; i < 30 && priority.byte(0xC03E) < 2; ++i) priority.frames(1);
     assert(priority.byte(0xC03E) >= 2);

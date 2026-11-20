@@ -206,8 +206,8 @@ approach and through the ramp. A speed above 3 pixels per frame is needed
 to launch. The launch keeps horizontal momentum, sets upward velocity based on
 speed, plays an approximate ramp sound and limits camera catch-up to one tile
 per update on each axis while airborne. The ramp sound takes priority: other
-effects are suppressed and music is paused and muted until it finishes, then
-music resumes at its previous position and volume. High launches are clamped at the top
+effects are suppressed while the music continues uninterrupted. The ramp
+sound is louder to help it stand out. High launches are clamped at the top
 of the map, and offscreen Sonic is hidden until the camera catches up. This
 is an approximation, not the original full physics or sound driver.
 Original moving platform objects are not yet implemented. Falling below the
@@ -251,7 +251,7 @@ The prototype plays jump, roll, brake, and ring pickup sound effects using
 PSG tone channel 2 only. Their note lengths, pitch sweeps, repeated notes and
 volume steps follow the SMS effects data, rendered as precomputed frame
 sequences rather than the original sound driver. Aside from the ramp sound's
-exclusive priority, effect priority and retrigger behavior remain simplified,
+priority over other effects, effect priority and retrigger behavior remain simplified,
 and the result has not been verified by listening against original hardware. Other Sonic sounds are not yet implemented.
 
 A first music port plays simplified arrangements of the original SMS title

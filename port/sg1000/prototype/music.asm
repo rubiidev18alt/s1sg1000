@@ -48,10 +48,6 @@ music_stop:
   out ($7F),a
   ret
 music_tick:
-  ; Freeze all streams while the launcher has exclusive PSG output.
-  ld a,(sfx_launch_lock)
-  or a
-  ret nz
   ld ix,music_ch0
   call music_tick_channel
   ld ix,music_ch1
