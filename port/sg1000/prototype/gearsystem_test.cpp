@@ -114,6 +114,10 @@ int main(int argc, char** argv) {
     assert(debug_updates >= 115);
     Simulation menu(argv[1], false);
     auto vram = menu.core.GetVideo()->GetVRAM();
+    const u8 brand[] = {12, 21, 22, 23, 24, 0, 12, 16};
+    for (int i = 0; i < 8; ++i) assert(vram[0x186C + i] == brand[i]);
+    assert(vram[0x2003] == 0xF1); // lowercase c is white on black
+    assert(vram[24 * 8 + 2] == 0x1C); // lowercase c glyph
     const u8 title[] = {8, 9, 10, 11, 0, 12, 11, 13, 11, 14, 15};
     const u8 option[] = {2, 0, 15, 11, 12, 15};
     for (int i = 0; i < 11; ++i) assert(vram[0x190A + i] == title[i]);
@@ -131,6 +135,7 @@ int main(int argc, char** argv) {
     menu.release(Key_1);
     menu.frames(4);
     assert(vram[0x190A] != 8 && menu.grounded() && menu.y() == 176);
+    assert(vram[0x186C] != 12); // branding is removed on level entry
     Simulation button2(argv[1], false);
     auto vram2 = button2.core.GetVideo()->GetVRAM();
     button2.press(Key_2);

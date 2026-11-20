@@ -169,11 +169,18 @@ solid_tile:
   out ($BE),a              ; characters 0-7
   out ($BE),a              ; characters 8-15
   out ($BE),a              ; characters 16-23
+  out ($BE),a              ; characters 24-31
   ; Upload the original SMS world-map glyphs, reduced to white pixels.
   ld hl,$4040             ; character 8
   call vdp_addr
   ld hl,menu_font_patterns
   ld bc,104
+  call vdp_copy
+  ; Lowercase companions to the original uppercase font for the brand line.
+  ld hl,$40A8             ; characters 21..24: o n i c
+  call vdp_addr
+  ld hl,menu_lowercase
+  ld bc,32
   call vdp_copy
   ld hl,$4010             ; character 2: selection arrow
   call vdp_addr
@@ -379,6 +386,11 @@ vdp_copy:
 ; TEST is initially selected; button 2 toggles selection. Button 1 enters
 ; the selected level. Require release before and after confirmation to avoid jumping.
 zone_menu:
+  ld hl,$586C             ; row 3, centred: Sonic SG
+  call vdp_addr
+  ld hl,menu_brand
+  ld bc,8
+  call vdp_copy
   ld hl,$590A             ; row 8, column 10
   call vdp_addr
   ld hl,menu_title
@@ -458,6 +470,13 @@ menu_poll:
   cpl
   ret
 
+menu_brand:
+.db 12,21,22,23,24,0,12,16      ; Sonic SG
+menu_lowercase:
+.db $00,$00,$1C,$22,$44,$88,$70,$00 ; o
+.db $00,$00,$58,$64,$44,$88,$88,$00 ; n
+.db $08,$00,$18,$08,$10,$10,$38,$00 ; i
+.db $00,$00,$1C,$22,$40,$80,$78,$00 ; c
 menu_title:
 .db 8,9,10,11,0,12,11,13,11,14,15 ; ZONE SELECT
 menu_test:
@@ -1644,4 +1663,8 @@ test_rings:
 ghz_rings:
 .INCBIN "build/sg1000/prototype/ghz_rings.bin"
 ghz_ring_buckets:
+.IFNDEF GHZ_PROBE
 .INCBIN "build/sg1000/prototype/ghz_ring_buckets.bin"
+.ENDIF
+; The collision-only probe never runs ring code. Omitting its last data block
+; leaves room for the probe harness in the fixed 32 KiB test cartridge.

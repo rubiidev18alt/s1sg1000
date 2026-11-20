@@ -77,7 +77,8 @@ down and press against the direction of travel to unroll and brake; the roll
 also ends when Sonic stops or jumps. Reset the emulator to restart. At the ZONE SELECT menu, tap button 2 to switch between TEST and GHZ1;
 press and release button 1 to enter either test level.
 The menu font is extracted from the SMS world-map art and reduced to white
-foreground pixels. Run it
+foreground pixels. The “Sonic SG” heading adds four matching custom lowercase
+glyphs. Run it
 in Gearsystem's SG-1000 mode (the `.sg` extension should select it; force
 SG-1000 if needed). NTSC timing is the reference.
 
