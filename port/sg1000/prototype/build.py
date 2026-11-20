@@ -158,6 +158,18 @@ def signpost_patterns(art):
     return bytes(out)
 
 
+def ghz_scenery(x, y):
+    """Small repeating cloud and island/water tiles, in empty GHZ sky only."""
+    phase = x % 64
+    if y in (30, 38, 46) and phase in (12, 13):
+        return 112 + phase - 12
+    if y in (34, 42, 50) and phase in (40, 41):
+        return 114 + phase - 40
+    if y in (35, 43, 51) and phase in (40, 41):
+        return 116 + phase - 40
+    return None
+
+
 def ghz_visual_rows(rom):
     """Pack collision silhouettes with surface/soil into short/long RLE runs.
 
@@ -181,6 +193,12 @@ def ghz_visual_rows(rom):
     for y, cells in enumerate(solid):
         types = [0 if not value else (2 if y == 0 or not solid[y - 1][x] else 1)
                  for x, value in enumerate(cells)]
+        scenery = {}
+        for x, tile_type in enumerate(types):
+            tile = ghz_scenery(x, y)
+            if tile_type == 0 and tile is not None:
+                types[x] = 3
+                scenery[x] = tile
         # The original special-02 ramp's nonempty 8x8 cells, derived from
         # metatile $50 at (2272,416). Collision remains unchanged.
         for xoffset, yoffset in ((3, 1), (0, 2), (1, 2), (3, 2),
@@ -195,11 +213,15 @@ def ghz_visual_rows(rom):
                 # The fourth visual type has one extra byte per cell, giving
                 # its exact SMS ramp tile; split runs to retain tile identity.
                 for column in range(x, x + count):
-                    index = (y - 52) * 4 + column - 284
-                    tile = ramp_tilemap[index]
-                    if not 0xd0 <= tile <= 0xd7:
-                        raise ValueError('unexpected GHZ ramp tile')
-                    packed.extend((0xc1, tile - 0xd0))
+                    if column in scenery:
+                        tile_index = scenery[column] - 80
+                    else:
+                        index = (y - 52) * 4 + column - 284
+                        tile = ramp_tilemap[index]
+                        if not 0xd0 <= tile <= 0xd7:
+                            raise ValueError('unexpected GHZ ramp tile')
+                        tile_index = tile - 0xd0
+                    packed.extend((0xc1, tile_index))
             elif count <= 31:
                 packed.append(value << 6 | count)
             else:

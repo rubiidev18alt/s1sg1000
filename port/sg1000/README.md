@@ -250,6 +250,10 @@ two-digit counter is white. Collected rings disappear and are tracked until rese
 the counter wraps at 100 as on SMS, but the extra life is not implemented.
 Fully visible rings are drawn when the camera changes (partially clipped rings are not drawn).
 
+GHZ1 also has small, hand-drawn clouds, islands and water in empty sky tiles.
+They repeat in world space and do not affect collision; this is a simple
+static approximation, not the original SMS art or parallax background.
+
 GHZ1's signpost appears at the original object coordinates (6432,384). It
 uses five frames converted from the SMS sprite maps and art as background
 tiles; Sonic touching it starts a spin and it settles on the no-bonus face.

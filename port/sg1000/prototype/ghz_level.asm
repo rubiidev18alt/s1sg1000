@@ -53,6 +53,15 @@ ghz_init:
   out ($BE),a
   ld a,$67                ; ramp: checkerboard brown on cyan
   out ($BE),a
+  ld hl,$4380            ; miniature cloud, island and water tiles 112..117
+  call vdp_addr
+  ld hl,ghz_scenery_patterns
+  ld bc,48
+  call vdp_copy
+  ld hl,$600E
+  call vdp_addr
+  ld a,$F7               ; white details on cyan
+  out ($BE),a
   jp signpost_init
 
 ghz_x_limit:
@@ -743,7 +752,7 @@ ghz_run_count_ready:
   dec a
   ld a,64                 ; two-green grass surface
   jr z,ghz_run_value_ready
-  ld a,(hl)               ; tile index 0..7 follows each one-cell ramp run
+  ld a,(hl)               ; tile index follows each one-cell literal run
   inc hl
   add a,80
   jr ghz_run_value_ready
@@ -819,3 +828,12 @@ ghz_launch_y_ready:
   inc a
   ld (launch_active),a
   jp sfx_launch
+
+; Small two-colour decorative silhouettes, not the original SMS artwork.
+ghz_scenery_patterns:
+.db $00,$03,$0F,$1F,$3F,$7F,$7F,$00 ; cloud left
+.db $00,$80,$E0,$F8,$FC,$FE,$FE,$00 ; cloud right
+.db $00,$00,$01,$07,$0F,$1F,$3F,$00 ; island left
+.db $00,$00,$80,$E0,$F0,$F8,$FC,$00 ; island right
+.db $00,$55,$00,$AA,$00,$55,$00,$00 ; water left
+.db $00,$AA,$00,$55,$00,$AA,$00,$00 ; water right

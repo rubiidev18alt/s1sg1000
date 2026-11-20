@@ -1670,11 +1670,11 @@ ghz_floor_profiles:
 .INCBIN "build/sg1000/prototype/ghz_floor_profiles.bin"
 ghz_visual_rows:
 .INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 0 READ 128
-ghz_visual_data:
-.INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 128
 ; Place real, frequently used asset data in the expansion window so the
 ; game and integration tests exercise reads beyond the old 32 KiB boundary.
 .ORG $8000
+ghz_visual_data:
+.INCBIN "build/sg1000/prototype/ghz_visual_rows.bin" SKIP 128
 ghz_terrain_patterns:
 .INCBIN "build/sg1000/prototype/ghz_terrain_patterns.bin"
 

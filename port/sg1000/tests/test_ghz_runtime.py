@@ -149,11 +149,16 @@ class RuntimeLayoutTest(unittest.TestCase):
                               for x, solid in enumerate(expected)]
             ramp = {(287, 53), (284, 54), (285, 54), (287, 54),
                     (284, 55), (285, 55), (286, 55), (287, 55)}
-            self.assertEqual(actual, [3 if (x, y) in ramp else tile
+            scenery = {x: mod.ghz_scenery(x, y) - 80
+                       for x, value in enumerate(expected_tiles)
+                       if value == 0 and mod.ghz_scenery(x, y) is not None}
+            self.assertEqual(actual, [3 if (x, y) in ramp or x in scenery else tile
                                       for x, tile in enumerate(expected_tiles)])
             tilemap = data[0x10000 + 0x50 * 16:0x10000 + 0x51 * 16]
-            self.assertEqual(ramp_tiles, {x: tilemap[(y - 52) * 4 + x - 284] - 0xd0
-                                         for x, row in ramp if row == y})
+            literal_tiles = {x: tilemap[(y - 52) * 4 + x - 284] - 0xd0
+                             for x, row in ramp if row == y}
+            literal_tiles.update(scenery)
+            self.assertEqual(ramp_tiles, literal_tiles)
             previous = expected
 
 

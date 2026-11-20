@@ -197,6 +197,9 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 768; ++i) grass_tiles += (vram2[0x1800 + i] == 64);
     assert(grass_tiles > 0);
     assert(button2.camera_x() == 21 && button2.camera_y() == 37);
+    assert(vram2[0x200E] == 0xF7);
+    assert(vram2[0x1800 + 5 * 32 + 19] == 114); // island
+    assert(vram2[0x1800 + 6 * 32 + 19] == 116); // water
     for (int i = 0; i < 32; ++i) {
         if (i < 2 || (i > 3 && i != 5 && i != 6))
             assert(vram2[0x1800 + i] == 0);      // sky outside HUD
@@ -208,6 +211,7 @@ int main(int argc, char** argv) {
     button2.frames(4);
     assert(button2.camera_x() == 22);
     assert(vram2[0x1800 + 15 * 32 + 9] == fixed_world_tile);
+    assert(vram2[0x1800 + 5 * 32 + 18] == 114); // scenery stays world-aligned
     button2.set_x(256);
     button2.frames(4);
     assert(button2.camera_x() == 21);
@@ -899,7 +903,13 @@ int main(int argc, char** argv) {
     priority.set_byte(0xC03D, 1);
     priority.release(Key_Right); priority.release(Key_Up);
     priority.set_x(2292); priority.set_y(312);
-    for (int i = 0; i < 30 && priority.byte(0xC03E) == 0; ++i) priority.frames(1);
+    for (int i = 0; i < 30 && priority.byte(0xC03E) == 0; ++i) {
+        int camera_before_ring = priority.camera_x() + 256 * priority.byte(0xC01E);
+        priority.frames(1);
+        int camera_after_ring = priority.camera_x() + 256 * priority.byte(0xC01E);
+        assert(priority.camera_y() != 255);
+        assert(camera_after_ring - camera_before_ring <= 1); // launch lag survives pickup
+    }
     assert(priority.byte(0xC03E) == 1); // ring collected during launch
     assert(priority.byte(0xC074) == 1);
     assert(priority.word(0xC058) >= launch_ptr); // still the launch effect
