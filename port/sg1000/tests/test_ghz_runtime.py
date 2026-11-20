@@ -86,12 +86,16 @@ class RuntimeLayoutTest(unittest.TestCase):
         if not art.exists():
             self.skipTest('unpacked SMS art absent')
         patterns = mod.ghz_terrain_patterns(art.read_bytes())
-        self.assertEqual(len(patterns), 40)
+        self.assertEqual(len(patterns), 88)
         self.assertEqual(patterns[:8], bytes([0xff, 0xff, 0xaa, 0xaa, 0xaa, 0x44, 0x44, 0x44]))
         self.assertEqual(patterns[8:16], bytes(8))
         self.assertEqual(patterns[16:24], bytes([0xff] * 8))
-        self.assertTrue(any(patterns[24:32]))
-        self.assertTrue(any(patterns[32:40]))
+        original = mod.menu_font.decode_hy(art.read_bytes())
+        for index in range(8):
+            source = original[(0xd0 + index) * 32:(0xd1 + index) * 32]
+            mask = bytes(source[y] | source[y+1] | source[y+2] | source[y+3]
+                         for y in range(0, 32, 4))
+            self.assertEqual(patterns[24 + index * 8:32 + index * 8], mask)
         with self.assertRaises(ValueError):
             mod.ghz_terrain_patterns(b'')
 
@@ -106,6 +110,7 @@ class RuntimeLayoutTest(unittest.TestCase):
         for y in range(64):
             pos = 128 + int.from_bytes(encoded[2*y:2*y+2], 'little')
             actual = []
+            ramp_tiles = {}
             while len(actual) < 1024:
                 run = encoded[pos]
                 pos += 1
@@ -116,6 +121,10 @@ class RuntimeLayoutTest(unittest.TestCase):
                     pos += 1
                 self.assertIn(tile_type, (0, 1, 2, 3))
                 self.assertGreater(count, 0)
+                if tile_type == 3:
+                    self.assertEqual(count, 1)
+                    ramp_tiles[len(actual)] = encoded[pos]
+                    pos += 1
                 actual.extend([tile_type] * count)
             expected = []
             for x in range(1024):
@@ -129,6 +138,9 @@ class RuntimeLayoutTest(unittest.TestCase):
                     (284, 55), (285, 55), (286, 55), (287, 55)}
             self.assertEqual(actual, [3 if (x, y) in ramp else tile
                                       for x, tile in enumerate(expected_tiles)])
+            tilemap = data[0x10000 + 0x50 * 16:0x10000 + 0x51 * 16]
+            self.assertEqual(ramp_tiles, {x: tilemap[(y - 52) * 4 + x - 284] - 0xd0
+                                         for x, row in ramp if row == y})
             previous = expected
 
 

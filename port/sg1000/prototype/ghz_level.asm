@@ -42,7 +42,7 @@ ghz_init:
   ld hl,$4280
   call vdp_addr
   ld hl,ghz_terrain_patterns+24
-  ld bc,16
+  ld bc,64
   call vdp_copy
   ld hl,$6008
   call vdp_addr
@@ -737,7 +737,9 @@ ghz_run_count_ready:
   dec a
   ld a,64                 ; two-green grass surface
   jr z,ghz_run_value_ready
-  ld a,80                 ; approximate original ramp artwork
+  ld a,(hl)               ; tile index 0..7 follows each one-cell ramp run
+  inc hl
+  add a,80
   jr ghz_run_value_ready
 ghz_run_soil:
   ld a,72                 ; checker soil and walls

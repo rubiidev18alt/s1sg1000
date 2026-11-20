@@ -89,7 +89,7 @@ def ghz_terrain_patterns(art):
     the original checkerboard. A tile gets one fixed colour pair.
     """
     raw = menu_font.decode_hy(art)
-    if len(raw) < 0xd7 * 32:
+    if len(raw) < 0xd8 * 32:
         raise ValueError('truncated GHZ art')
     def convert(index, bright):
         result = bytearray()
@@ -105,11 +105,11 @@ def ghz_terrain_patterns(art):
     # The SMS highlight and shadow use extra colours. Keep a clean light-green
     # lip and the original grass texture below it in the two-colour version.
     grass = bytes([0xff, 0xff]) + grass[2:]
-    # Monochrome ramp pieces use the original GHZ d0/d6 pixels; the two
-    # TMS tiles approximate the 32x32 SMS metatile without extra sprites.
+    # Original GHZ d0..d7 ramp tiles, preserving their tile-specific shapes.
+    # Graphics I keeps the original opacity as one bit, not the SMS colours.
     return (grass + convert(0x02, {3}) + convert(0x03, {3})
-            + convert(0xd0, set(range(1, 16)))
-            + convert(0xd6, set(range(1, 16))))
+            + b''.join(convert(index, set(range(1, 16)))
+                       for index in range(0xd0, 0xd8)))
 
 
 def ghz_visual_rows(rom):
@@ -128,6 +128,9 @@ def ghz_visual_rows(rom):
             height = value if value < 128 else value - 256
             cells.append(int(value != 128 and (y % 4) * 8 + 4 >= height))
         solid.append(cells)
+    ramp_tilemap = rom[0x10000 + 0x50 * 16:0x10000 + 0x51 * 16]
+    if len(ramp_tilemap) != 16:
+        raise ValueError('truncated GHZ ramp tilemap')
     rows = []
     for y, cells in enumerate(solid):
         types = [0 if not value else (2 if y == 0 or not solid[y - 1][x] else 1)
@@ -139,12 +142,23 @@ def ghz_visual_rows(rom):
             if y == 416 // 8 + yoffset:
                 types[2272 // 8 + xoffset] = 3
         packed = bytearray()
+        x = 0
         for value, group in groupby(types):
             count = sum(1 for _ in group)
-            if count <= 31:
+            if value == 3:
+                # The fourth visual type has one extra byte per cell, giving
+                # its exact SMS ramp tile; split runs to retain tile identity.
+                for column in range(x, x + count):
+                    index = (y - 52) * 4 + column - 284
+                    tile = ramp_tilemap[index]
+                    if not 0xd0 <= tile <= 0xd7:
+                        raise ValueError('unexpected GHZ ramp tile')
+                    packed.extend((0xc1, tile - 0xd0))
+            elif count <= 31:
                 packed.append(value << 6 | count)
             else:
                 packed.extend((value << 6 | 0x20 | count >> 8, count & 255))
+            x += count
         rows.append(bytes(packed))
     offsets = bytearray()
     cursor = 0

@@ -199,9 +199,9 @@ have solid undersides; detached platforms remain semisolid, so Sonic can jump
 through them from below. Connectedness is a prototype approximation, not
 original SMS material data, and other side collision is still incomplete.
 The SMS GHZ1 tile-special data contains one ramp launcher, at world position
-(2272,416). Its background-tile artwork is a two-pattern approximation of
-the original ramp, rather than separate hardware sprites (Sonic already uses
-the scanline sprite budget). Start rolling, then hold up and right down the
+(2272,416). Its eight original SMS ramp tiles are converted to monochrome
+background tiles in their original arrangement, rather than separate hardware
+sprites (Sonic already uses the scanline sprite budget). Start rolling, then hold up and right down the
 approach and through the ramp. A speed above 3 pixels per frame is needed
 to launch. The launch keeps horizontal momentum, sets upward velocity based on
 speed, plays an approximate ramp sound and limits camera catch-up to one tile

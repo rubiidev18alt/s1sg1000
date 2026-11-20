@@ -708,8 +708,17 @@ int main(int argc, char** argv) {
     assert(ramp_vram[0x200A] == 0xF7);
     int ramp_art_tiles = 0;
     for (int i = 0; i < 768; ++i)
-        ramp_art_tiles += (ramp_vram[0x1800 + i] == 80 || ramp_vram[0x1800 + i] == 81);
+        ramp_art_tiles += (ramp_vram[0x1800 + i] >= 80 && ramp_vram[0x1800 + i] <= 87);
     assert(ramp_art_tiles == 8);
+    const int ramp_cells[8][3] = {{287,53,87}, {284,54,80}, {285,54,82},
+                                  {287,54,86}, {284,55,81}, {285,55,83},
+                                  {286,55,84}, {287,55,85}};
+    int ramp_cam_x = ramp.camera_x() + 256 * ramp.byte(0xC01E);
+    for (auto &cell : ramp_cells) {
+        int sx = cell[0] - ramp_cam_x, sy = cell[1] - ramp.camera_y();
+        assert(sx >= 0 && sx < 32 && sy >= 0 && sy < 24);
+        assert(ramp_vram[0x1800 + sy * 32 + sx] == cell[2]);
+    }
     ramp.set_byte(0xC03D, 0);
     ramp.set_x(2271); ramp.set_y(410);
     ramp.set_word(0xC004, 0x0200); ramp.set_word(0xC006, 0);
