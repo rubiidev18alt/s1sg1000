@@ -835,6 +835,34 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 100 && approach.byte(0xC073) == 0 && approach.x() < 2320; ++i)
         approach.frames(1);
     assert(approach.byte(0xC073) == 1);
+    // Original GHZ signpost location and source-derived animation patterns.
+    Simulation sign(argv[1], false);
+    sign.press(Key_2); sign.frames(3); sign.release(Key_2); sign.frames(2);
+    sign.press(Key_1); sign.frames(3); sign.release(Key_1); sign.frames(40);
+    sign.set_byte(0xC03D, 1); // camera settles without triggering the post
+    sign.set_x(6400); sign.set_y(360); sign.frames(20);
+    assert(sign.byte(0xC076) == 0);
+    auto sign_vram = sign.core.GetVideo()->GetVRAM();
+    int sign_x = 802 - (sign.camera_x() + 256 * sign.byte(0xC01E));
+    int sign_y = 44 - sign.camera_y();
+    assert(sign_x >= 0 && sign_x <= 28 && sign_y >= 0 && sign_y <= 18);
+    assert(sign_vram[0x1800 + sign_y * 32 + sign_x] == 88);
+    assert(sign_vram[0x200B] == 0xF7);
+    std::vector<u8> sign_initial(sign_vram + 88 * 8, sign_vram + 112 * 8);
+    sign.set_byte(0xC03D, 0);
+    sign.set_x(6420); sign.set_y(360);
+    sign.set_word(0xC004, 0); sign.set_word(0xC006, 0);
+    for (int i = 0; i < 10 && sign.byte(0xC076) == 0; ++i) sign.frames(1);
+    assert(sign.byte(0xC076) == 1);
+    bool sign_changed = false;
+    for (int i = 0; i < 20 && !sign_changed; ++i) {
+        sign.frames(1);
+        for (int j = 0; j < 192; ++j) sign_changed |= sign_vram[88 * 8 + j] != sign_initial[j];
+    }
+    assert(sign_changed);
+    for (int i = 0; i < 150 && sign.byte(0xC076) == 1; ++i) sign.frames(1);
+    assert(sign.byte(0xC076) == 2);
+    assert(sign.byte(0xC078) == 4);
     // Ring collection cannot interrupt the ramp effect, but the song keeps
     // advancing and sounding on its own channels throughout.
     Simulation priority(argv[1], false);

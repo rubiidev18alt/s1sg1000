@@ -250,6 +250,14 @@ two-digit counter is white. Collected rings disappear and are tracked until rese
 the counter wraps at 100 as on SMS, but the extra life is not implemented.
 Fully visible rings are drawn when the camera changes (partially clipped rings are not drawn).
 
+GHZ1's signpost appears at the original object coordinates (6432,384). It
+uses five frames converted from the SMS sprite maps and art as background
+tiles; Sonic touching it starts a spin and it settles on the no-bonus face.
+The spin and landing sound effects use original effect note pitches and
+rhythms, but approximate their envelopes. Contact bounds, spin duration and
+motion are simplified: bonus rewards and the act-complete transition are not
+yet implemented. The two-colour overlay may cover background terrain.
+
 The prototype plays jump, roll, brake, and ring pickup sound effects using
 PSG tone channel 2 only. Their note lengths, pitch sweeps, repeated notes and
 volume steps follow the SMS effects data, rendered as precomputed frame

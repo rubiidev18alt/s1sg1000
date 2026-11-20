@@ -112,6 +112,52 @@ def ghz_terrain_patterns(art):
                        for index in range(0xd0, 0xd8)))
 
 
+# SMS signpost sprite maps (8x16 pieces), in the same order as the original
+# unspun, three spin views, and the no-bonus result. FE/FF cells are blank.
+SIGNPOST_MAPS = (
+    (0x4e, 0x50, 0x52, 0x54, 0x6e, 0x70, 0x72, 0x74, None, 0x42, 0x44, None),
+    (0x16, 0x18, 0x1a, 0x1c, 0x36, 0x38, 0x3a, 0x3c, None, 0x42, 0x44, None),
+    (None, 0x12, 0x14, None, None, 0x32, 0x34, None, None, 0x42, 0x44, None),
+    (0x56, 0x58, 0x5a, 0x5c, 0x76, 0x78, 0x7a, 0x7c, None, 0x42, 0x44, None),
+    (0x00, 0x02, 0x04, 0x06, 0x20, 0x22, 0x24, 0x26, None, 0x42, 0x44, None),
+)
+
+def ghz_signpost(objects):
+    """Read the original object list, excluding the implicit Sonic entry."""
+    if not objects or len(objects) != 1 + (objects[0] - 1) * 3:
+        raise ValueError('invalid GHZ1 object list')
+    positions = [(objects[i+1] * 32, objects[i+2] * 32)
+                 for i in range(1, len(objects), 3) if objects[i] == 7]
+    if len(positions) != 1:
+        raise ValueError('unexpected number of GHZ1 signposts')
+    return positions[0]
+
+
+def signpost_patterns(art):
+    """Convert original signpost map and art to 24 TMS background tiles/frame.
+
+    The SMS palette colour 8 is the face fill. Excluding it keeps the face
+    details visible in the SG-1000's single-colour background-tile rendering.
+    """
+    raw = menu_font.decode_hy(art)
+    if len(raw) < 128 * 32:
+        raise ValueError('truncated signpost art')
+    out = bytearray()
+    for mapping in SIGNPOST_MAPS:
+        for row in range(6):
+            for col in range(4):
+                tile = mapping[(row // 2) * 4 + col]
+                if tile is None:
+                    out.extend(bytes(8))
+                    continue
+                tile += row % 2
+                for y in range(8):
+                    planes = raw[tile * 32 + y * 4:tile * 32 + y * 4 + 4]
+                    # Any nonzero colour other than the flat background 8.
+                    out.append(planes[0] | planes[1] | planes[2])
+    return bytes(out)
+
+
 def ghz_visual_rows(rom):
     """Pack collision silhouettes with surface/soil into short/long RLE runs.
 
@@ -226,6 +272,11 @@ def main():
         ramps = ghz_ramp_positions(rom_bytes, (data / 'lv_ghz.tilespecials').read_bytes())
         if ramps != [(2272, 416)]:
             raise ValueError('unexpected GHZ1 launch-ramp layout')
+        sign = ghz_signpost((data / 'lv_ghz_1.objects').read_bytes())
+        if sign != (6432, 384):
+            raise ValueError('unexpected GHZ1 signpost location')
+        (out / 'signpost_patterns.bin').write_bytes(
+            signpost_patterns((data / 'signpost.art2000').read_bytes()))
         (out / 'ghz_ramp.inc').write_text(
             '.DEFINE GHZ_RAMP_X {}\n.DEFINE GHZ_RAMP_Y {}\n'.format(*ramps[0]))
         ghz_map, ghz_floor = ghz_runtime_data(rom_bytes)

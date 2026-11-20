@@ -83,6 +83,9 @@ ghz_downhill db
 launch_active db
 sfx_launch_lock db
 terrain_dirty db
+sign_state db
+sign_timer db
+sign_frame db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -209,6 +212,7 @@ solid_tile:
   call nz,ghz_init
   call rings_init
   call update_camera
+  call signpost_draw
   call rings_tick
   call draw_sonic
 main_loop:
@@ -246,7 +250,9 @@ normal_frame:
 preview_frame:
   call animation_viewer
 frame_draw:
+  call signpost_tick
   call update_camera
+  call signpost_draw
   call rings_tick
   call ring_animate
   call draw_sonic
@@ -1675,6 +1681,9 @@ ghz_rings:
 .INCBIN "build/sg1000/prototype/ghz_rings.bin"
 ghz_ring_buckets:
 .INCBIN "build/sg1000/prototype/ghz_ring_buckets.bin"
+signpost_patterns:
+.INCBIN "build/sg1000/prototype/signpost_patterns.bin"
+.INCLUDE "port/sg1000/prototype/signpost.asm"
 ; Known bytes at the end of the linear ROM for emulator boundary testing.
 .ORG $BFF8
 .db "SG48KEND"

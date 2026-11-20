@@ -81,6 +81,19 @@ class RuntimeLayoutTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             mod.ring_buckets([(32, 0), (16, 0)])
 
+    def test_signpost_from_sms_objects_and_art(self):
+        objects = (ROOT / 'src/data/lv_ghz_1.objects').read_bytes()
+        self.assertEqual(mod.ghz_signpost(objects), (6432, 384))
+        with self.assertRaises(ValueError):
+            mod.ghz_signpost(objects[:-1])
+        art = (ROOT / 'src/data/signpost.art2000').read_bytes()
+        result = mod.signpost_patterns(art)
+        self.assertEqual(len(result), 5 * 24 * 8)
+        self.assertNotEqual(result[:192], result[192:384])
+        self.assertTrue(any(result[:192]))
+        with self.assertRaises(ValueError):
+            mod.signpost_patterns(b'')
+
     def test_ghz_terrain_patterns_use_original_art(self):
         art = ROOT / 'src/data/lv_ghz.art0000'
         if not art.exists():

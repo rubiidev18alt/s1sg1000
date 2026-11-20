@@ -31,6 +31,12 @@ sfx_launch:
   ld a,1
   ld (sfx_launch_lock),a
   jr sfx_force_start
+sfx_sign_spin:
+  ld hl,sfx_sign_spin_data
+  jr sfx_start
+sfx_sign_land:
+  ld hl,sfx_sign_land_data
+  jr sfx_start
 sfx_brake:
   ld hl,sfx_brake_data
 sfx_start:
@@ -311,4 +317,29 @@ sfx_launch_data:
 .dw 1052
 .db 6
 .dw 4121
+.db 0
+
+; SMS effects 0B and 0C: source note pitches and rests; driver modulation
+; and landing envelope are simplified to fit the existing tone-2 sequencer.
+sfx_sign_spin_data:
+.db 1
+.dw 56
+.db 1
+.dw 31
+.db 2
+.dw 15360
+.db 1
+.dw 56
+.db 1
+.dw 31
+.db 2
+.dw 15360
+.db 0
+sfx_sign_land_data:
+.db 2
+.dw 427
+.db 2
+.dw 15360
+.db 12
+.dw 253
 .db 0

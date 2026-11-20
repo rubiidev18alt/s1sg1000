@@ -53,7 +53,7 @@ ghz_init:
   out ($BE),a
   ld a,$67                ; ramp: checkerboard brown on cyan
   out ($BE),a
-  ret
+  jp signpost_init
 
 ghz_x_limit:
   call ghz_wall_x
