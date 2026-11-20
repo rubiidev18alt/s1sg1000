@@ -179,10 +179,10 @@ rings_read_y:
   daa                         ; SMS counter is two-digit BCD
   ld (ring_count),a
   call sfx_ring
-  ; Force redraw so the collected background-ring is erased.
-  ld a,$FF
-  ld (camera_x),a
-  ld (camera_y),a
+  ; Redraw next frame without corrupting the live camera coordinates: other
+  ; rings and Sonic still need them during this frame (including launch lag).
+  ld a,1
+  ld (terrain_dirty),a
   jp rings_next
 rings_render:
   ld a,(ring_redraw)

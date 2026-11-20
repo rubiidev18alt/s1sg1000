@@ -403,8 +403,21 @@ int main(int argc, char** argv) {
     assert(ring_vram[0x1800 + 9 * 32 + 12] == 32); // ring at 96,176
     test_ring.set_x(84);
     test_ring.set_y(176);
-    test_ring.frames(6);
+    bool saw_dirty = false;
+    for (int i = 0; i < 6; ++i) {
+        test_ring.frames(1);
+        if (test_ring.byte(0xC075)) {
+            saw_dirty = true;
+            assert(test_ring.camera_x() != 255 && test_ring.camera_y() != 255);
+        }
+    }
+    assert(saw_dirty);
+    assert(test_ring.byte(0xC075) == 0); // redraw completes next update
     assert(test_ring.byte(0xC03E) == 1);
+    int ring_row = 176 / 8 - test_ring.camera_y();
+    int ring_col = 96 / 8 - test_ring.camera_x();
+    assert(ring_vram[0x1800 + ring_row * 32 + ring_col] != 32); // erased
+    assert(ring_vram[0x1800 + ring_row * 32 + ring_col + 2] == 32); // neighbour intact
     auto ring_audio = test_ring.core.GetAudio()->GetPSG()->GetState();
     assert(ring_audio.channels[2].volume_reg == 0);
     assert(ring_audio.channels[2].period == 71 * 16);
@@ -705,7 +718,7 @@ int main(int argc, char** argv) {
     ramp.set_byte(0xC03D, 1); // hold position while the camera redraws
     ramp.set_x(2260); ramp.set_y(400); ramp.frames(20);
     auto ramp_vram = ramp.core.GetVideo()->GetVRAM();
-    assert(ramp_vram[0x200A] == 0xF7);
+    assert(ramp_vram[0x200A] == 0x67); // checkerboard brown on cyan
     int ramp_art_tiles = 0;
     for (int i = 0; i < 768; ++i)
         ramp_art_tiles += (ramp_vram[0x1800 + i] >= 80 && ramp_vram[0x1800 + i] <= 87);

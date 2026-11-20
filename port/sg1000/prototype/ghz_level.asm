@@ -10,6 +10,7 @@ ghz_init:
   ld (camera_x_hi),a
   ld (ghz_downhill),a
   ld (launch_active),a
+  ld (terrain_dirty),a
   ld a,1
   ld (xpage),a             ; original start x=256
   ld (ypage),a
@@ -50,7 +51,7 @@ ghz_init:
   out ($BE),a
   ld a,$A6
   out ($BE),a
-  ld a,$F7                ; ramp: white on cyan
+  ld a,$67                ; ramp: checkerboard brown on cyan
   out ($BE),a
   ret
 
@@ -575,9 +576,14 @@ ghz_cam_y_launch_done:
   jr nz,ghz_camera_changed
   ld a,(camera_x_hi)
   cp h
+  jr nz,ghz_camera_changed
+  ld a,(terrain_dirty)
+  or a
   ret z
 ghz_camera_changed:
   push hl
+  xor a
+  ld (terrain_dirty),a
   ld a,1
   ld (ring_redraw),a
   pop hl

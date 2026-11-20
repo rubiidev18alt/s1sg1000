@@ -82,6 +82,7 @@ ghz_draw_value db
 ghz_downhill db
 launch_active db
 sfx_launch_lock db
+terrain_dirty db
 .ENDS
 .BANK 0 SLOT 0
 .ORG 0
@@ -120,6 +121,7 @@ init:
   ld (anim_subframe),a
   ld (debug_mode),a
   ld (launch_active),a
+  ld (terrain_dirty),a
   ld a,$FF
   ld (sprite_cached_index),a
   ld (ring_hud_cached_count),a
@@ -1102,8 +1104,13 @@ camera_y_ready:
   jr nz,camera_changed
   ld a,(camera_y)
   cp b
+  jr nz,camera_changed
+  ld a,(terrain_dirty)
+  or a
   ret z
 camera_changed:
+  xor a
+  ld (terrain_dirty),a
   ld a,1
   ld (ring_redraw),a
   ld a,c
